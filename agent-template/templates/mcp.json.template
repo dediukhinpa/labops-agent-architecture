@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "second_brain-memory": {
+      "type": "http",
+      "url": "${MCP_HOST}/memory/mcp",
+      "headers": { "Authorization": "Bearer ${AGENT_BEARER}" }
+    },
+    "second_brain-recall": {
+      "type": "http",
+      "url": "${MCP_HOST}/recall/mcp",
+      "headers": { "Authorization": "Bearer ${AGENT_BEARER}" }
+    },
+    "second_brain-swarm": {
+      "type": "http",
+      "url": "${MCP_HOST}/swarm/mcp",
+      "headers": { "Authorization": "Bearer ${AGENT_BEARER}" }
+    }
+  }
+}
