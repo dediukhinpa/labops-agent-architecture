@@ -12,6 +12,8 @@
   <img src="https://img.shields.io/badge/Built%20by-LabOps.ai-111111?style=for-the-badge" alt="Built by LabOps.ai">
 </p>
 
+<p align="center"><a href="README.md"><b>English</b></a> · <a href="README.ru.md">Русский</a></p>
+
 <p align="center">
   <b>Система labops:</b>
   <a href="https://github.com/dediukhinpa/labops-tg-plugin">tg-plugin</a> ·
@@ -19,377 +21,456 @@
   <b>agent-architecture</b>
 </p>
 
-**Рантайм- и lifecycle-слой агентной системы labops** — воркспейсы агентов (CLAUDE.md / rules.md / слои памяти), скаффолдер `agent-template`, пер-агентный рантайм (`watchdog.sh → start-agent.sh → tmux → долгоживущая сессия Claude Code`), systemd-юниты, хуки жизненного цикла, автоматизация роя и скилл **`create-agent`**, которым первый агент (Developer / Разработчик) разворачивает остальных агентов «под ключ».
+**The runtime and lifecycle layer of the labops agent system** — agent workspaces (CLAUDE.md / rules.md / memory layers), the `agent-template` scaffolder, a per-agent runtime (`watchdog.sh → start-agent.sh → tmux → a long-lived Claude Code session`), systemd units, lifecycle hooks, swarm automation, and the **`create-agent`** skill that the first agent (Developer) uses to roll out the rest of the swarm turnkey.
 
-Это один из **трёх** репозиториев системы labops. Он отвечает за то, как агент **живёт** (процессы, память, самовосстановление). Канал и общий мозг — в соседних репозиториях:
+This is one of the **three** repositories of the labops system. It owns how an agent **lives** (processes, memory, self-healing). The channel and the shared brain live in the sibling repositories:
 
-- **[`labops-tg-plugin`](../labops-tg-plugin)** — Telegram-канал: пер-агентный бот, голос, реакции, webhook.
-- **[`labops-second-brain`](../labops-second-brain)** — общая память: MCP `memory:8767` / `recall:8768` / `swarm:8766` / `task:8769`. Агент получает Bearer-токен и читает/пишет через MCP.
+- **[`labops-tg-plugin`](https://github.com/dediukhinpa/labops-tg-plugin)** — the Telegram channel: per-agent bot, voice, reactions, webhook.
+- **[`labops-second-brain`](https://github.com/dediukhinpa/labops-second-brain)** — shared memory: MCP `memory:8767` / `recall:8768` / `swarm:8766` / `task:8769`. The agent receives a Bearer token and reads/writes through MCP.
 
-> **Платформа:** Linux + systemd + tmux. На macOS/без systemd агент можно гонять вручную в tmux, но не как службу (нет автозапуска/самовосстановления).
-
-### Минимум, чтобы взлетело
-
-Остальное в README можно читать по мере надобности — для первого агента достаточно:
-
-1. **Зависимости:** `claude` (Claude Code) + разовый `claude setup-token` (подписка Max/Pro), `tmux`, `systemd`, `curl`, `jq`. Плюс соседние репо: `labops-second-brain` (Bearer-токен) и `labops-tg-plugin` (чат).
-2. **Поставить движок и войти:** `npm i -g @anthropic-ai/claude-code && claude setup-token`.
-3. **Создать первого агента:** `bash install.sh` — спросит имя/модель/Telegram-бота, всё развернёт и прогонит smoke. Для Developer модель по умолчанию `opus` (Opus 4.8).
-4. **Telegram-бот заранее:** @BotFather → `/newbot` → токен; свой `user_id` у @userinfobot (см. шаг установки — он проведёт).
-
-Если чего-то нет — установка честно перечислит, что **не** настроено (а не покажет ложный зелёный).
+> **Platform:** Linux + systemd + tmux. On macOS / without systemd you can run an agent manually in tmux, but not as a service (no autostart / self-healing).
 
 ---
 
-## Содержание
+## Table of contents
 
-1. [Что это и зачем](#1-что-это-и-зачем)
-2. [Архитектура рантайма](#2-архитектура-рантайма)
-3. [Слои памяти агента](#3-слои-памяти-агента)
-4. [agent-template — скаффолдер](#4-agent-template--скаффолдер)
-5. [Скилл `create-agent` (end-to-end)](#5-скилл-create-agent-end-to-end)
-6. [Хуки жизненного цикла](#6-хуки-жизненного-цикла)
-7. [Автоматизация роя](#7-автоматизация-роя)
-8. [Скиллы в комплекте](#8-скиллы-в-комплекте)
-9. [Установка](#9-установка)
-10. [Переменные и настройки](#10-переменные-и-настройки)
-11. [Тесты](#11-тесты)
-12. [Связанные репозитории](#12-связанные-репозитории)
-13. [Лицензия](#13-лицензия)
+1. [Why labops](#why-labops)
+2. [Quickstart](#quickstart)
+3. [Runtime architecture](#runtime-architecture)
+4. [Agent memory layers](#agent-memory-layers)
+5. [agent-template — scaffolder](#agent-template--scaffolder)
+6. [The `create-agent` skill (end-to-end)](#the-create-agent-skill-end-to-end)
+7. [Lifecycle hooks & swarm automation](#lifecycle-hooks--swarm-automation)
+8. [Bundled skills](#bundled-skills)
+9. [Installation & model/auth](#installation--modelauth)
+10. [Configuration & environment](#configuration--environment)
+11. [Troubleshooting](#troubleshooting)
+12. [FAQ](#faq)
+13. [Part of labops](#part-of-labops)
+14. [License](#license)
 
 ---
 
-## 1. Что это и зачем
+## Why labops
 
-В системе labops **бэкенд устроен Agent-Native**: память, рой и канал — это API/MCP *для агентов*, а не интерфейс для человека. Человеку (Оператору) виден только Telegram. Этот репозиторий — то, что превращает «движок» Claude Code в **постоянно живущего агента**: даёт ему рабочее место (воркспейс с памятью), супервизора (watchdog под systemd), события жизненного цикла (хуки) и связь с роем.
+In the labops system the **backend is Agent-Native**: memory, swarm, and channel are APIs/MCP *for agents*, not a UI for humans. A human (the Operator) sees only Telegram. This repository is what turns the Claude Code "engine" into a **continuously living agent** — it gives it a workplace (a workspace with memory), a supervisor (a watchdog under systemd), lifecycle events (hooks), and a link to the swarm.
 
-Ключевая идея репозитория — **самозагрузка роя**. Не нужно вручную поднимать каждого агента. Вы устанавливаете **первого агента — Developer / Разработчик**, а дальше он сам, через скилл [`create-agent`](#5-скилл-create-agent-end-to-end), разворачивает следующих: скаффолдит воркспейс, регистрирует Telegram-бота, подключает голос, выдаёт second_brain-токен, ставит автозапуск под systemd и прогоняет smoke-тест. Развёртывание агентов становится операцией самого роя, а не ручной процедурой оператора.
+- **Self-bootstrapping swarm.** You don't bring up each agent by hand. You install the **first agent — Developer** — and from there it rolls out the next ones itself via the [`create-agent`](#the-create-agent-skill-end-to-end) skill.
+- **One install, then the swarm grows itself.** `create-agent` scaffolds a workspace, registers a Telegram bot, wires up voice, issues a second_brain token, sets up autostart under systemd, and runs a smoke test — turning agent deployment into an operation of the swarm itself rather than a manual Operator procedure.
+- **Nested self-healing.** systemd holds the watchdog, the watchdog holds tmux+claude, claude holds the channel server. A failure at any level is healed by the level above.
+- **Truth beats memory.** The hierarchy is live check (exec/grep) → second_brain (shared brain) → git history → local memory. When memory contradicts a live check, the check wins.
+- **Honest install.** If something is missing, the installer plainly lists what is **not** configured instead of showing a false green.
 
 ```mermaid
 flowchart LR
-  Operator["Оператор"] -->|install.sh| Dev["Агент Developer / Разработчик"]
-  Dev -->|скилл create-agent| A2["Агент &lt;agent-2&gt;"]
-  Dev -->|скилл create-agent| A3["Агент &lt;agent-3&gt;"]
-  Dev -->|скилл create-agent| An["Агент &lt;agent-N&gt;"]
-  subgraph deps["Зависимости (соседние репозитории)"]
-    TG["labops-tg-plugin (канал)"]
-    SB["labops-second-brain (общий мозг)"]
+  Operator["Operator"] -->|install.sh| Dev["Developer agent"]
+  Dev -->|create-agent skill| A2["&lt;agent-2&gt; agent"]
+  Dev -->|create-agent skill| A3["&lt;agent-3&gt; agent"]
+  Dev -->|create-agent skill| An["&lt;agent-N&gt; agent"]
+  subgraph deps["Dependencies (sibling repositories)"]
+    TG["labops-tg-plugin (channel)"]
+    SB["labops-second-brain (shared brain)"]
   end
-  Dev -.->|канал + токен| deps
+  Dev -.->|channel + token| deps
   A2 -.-> deps
   A3 -.-> deps
 ```
 
-Границы ответственности трёх репозиториев:
+Responsibility boundaries of the three repositories:
 
-| Репозиторий | Слой | Отвечает за |
+| Repository | Layer | Owns |
 |---|---|---|
-| **labops-agent-architecture** (этот) | Рантайм / lifecycle | воркспейсы, память, watchdog, systemd, хуки, автоматизация роя, скилл `create-agent` |
-| **labops-tg-plugin** | Канал | приём из Telegram (long-poll), отправка ответов/реакций, голос, webhook `:8089+` |
-| **labops-second-brain** | Память | Postgres+pgvector, MCP memory/recall/swarm/task, RBAC по Bearer-токенам |
+| **labops-agent-architecture** (this one) | Runtime / lifecycle | workspaces, memory, watchdog, systemd, hooks, swarm automation, the `create-agent` skill |
+| **labops-tg-plugin** | Channel | receiving from Telegram (long-poll), sending replies/reactions, voice, webhook `:8089+` |
+| **labops-second-brain** | Memory | Postgres+pgvector, MCP memory/recall/swarm/task, RBAC via Bearer tokens |
 
 ---
 
-## 2. Архитектура рантайма
+## Quickstart
 
-Никто не запускает агентов «вручную» — всё держит **systemd**, и агент сам себя поднимает после любого падения. Страховка **вложенная**: systemd держит watchdog → watchdog держит tmux+claude → claude держит канал-сервер (bun). Падение на любом уровне лечится уровнем выше.
+Everything else in this README can be read as needed — for the first agent this is enough:
+
+1. **Dependencies:** `claude` (Claude Code) + a one-time `claude setup-token` (Max/Pro subscription), `tmux`, `systemd`, `curl`, `jq`. Plus the sibling repos: `labops-second-brain` (Bearer token) and `labops-tg-plugin` (chat).
+2. **Install the engine and sign in:** `npm i -g @anthropic-ai/claude-code && claude setup-token`.
+3. **Create the first agent:** `bash install.sh` — it asks for name/model/Telegram bot, deploys everything, and runs a smoke test. For the Developer the default model is `opus` (Opus 4.8).
+4. **Telegram bot up front:** @BotFather → `/newbot` → token; get your `user_id` from @userinfobot (the install step will walk you through it).
+
+```bash
+# 1. Bring up the sibling repos first (brain + channel)
+#    see labops-second-brain/README and labops-tg-plugin/README
+
+# 1a. Install the engine and connect the model
+npm i -g @anthropic-ai/claude-code
+claude setup-token       # sign in with a Max/Pro subscription (model choice is in the install dialog below)
+
+# 2. Install the Developer agent from this repository
+cd labops-agent-architecture
+bash install.sh          # model → identity → scaffold → bot → voice → token → systemd → smoke
+
+# 3. After install, the swarm is grown by the Developer agent itself
+#    (it invokes the create-agent skill at the Operator's request)
+```
+
+If something is missing, the install honestly lists what is **not** configured (rather than showing a false green).
+
+---
+
+## Runtime architecture
+
+Nobody runs agents "by hand" — **systemd** holds everything, and the agent brings itself back up after any crash. The safety net is **nested**: systemd holds the watchdog → the watchdog holds tmux+claude → claude holds the channel server (bun). A failure at any level is healed by the level above.
 
 ```mermaid
 flowchart TD
   SD["systemd: claude-agent-&lt;agent&gt;.service<br/>Restart=on-failure, RestartSec=15"]
-  WD["watchdog.sh &lt;agent&gt;<br/>вечный надзиратель (демон)"]
-  SA["start-agent.sh &lt;agent&gt;<br/>подставляет env/секреты, создаёт сессию"]
-  TM["tmux-сессия labops-&lt;agent&gt;"]
+  WD["watchdog.sh &lt;agent&gt;<br/>eternal supervisor (daemon)"]
+  SA["start-agent.sh &lt;agent&gt;<br/>injects env/secrets, creates the session"]
+  TM["tmux session labops-&lt;agent&gt;"]
   CC["claude (Claude Code CLI)<br/>--dangerously-skip-permissions<br/>server:labops-channel"]
-  BUN["канал-сервер (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
+  BUN["channel server (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
   SB["second_brain MCP<br/>memory:8767 / recall:8768 / swarm:8766"]
 
   SD -->|ExecStart| WD
-  WD -->|если сессии нет / зависла| SA
+  WD -->|if no session / frozen| SA
   SA -->|tmux new-session| TM
   TM --> CC
   CC -->|spawn child, stdio MCP| BUN
   CC -->|HTTP + Bearer| SB
-  BUN <-->|getUpdates / sendMessage| TG["Telegram (Оператор)"]
+  BUN <-->|getUpdates / sendMessage| TG["Telegram (Operator)"]
 ```
 
-**Цепочка запуска:**
+**Startup chain:**
 
-1. **systemd** поднимает службу `claude-agent-<agent>.service` (одна на агента). Главный процесс службы — не `claude`, а `watchdog.sh`.
-2. **`watchdog.sh <agent>`** — долгоживущий демон. Если tmux-сессии нет или панель зависла, зовёт `start-agent.sh`. Заодно «реапит» осиротевший канал-сервер (bun).
-3. **`start-agent.sh <agent>`** читает секреты из `.claude/secrets/` (chmod 600, никогда не хардкодятся), подставляет env, создаёт tmux-сессию `labops-<agent>` и запускает в ней `claude … server:labops-channel`. Ждёт строку `Listening for channel` (до 30 c).
-4. **`claude`** (движок) грузит канал-плагин, спавнит дочерний bun-процесс канала по stdio и подключает MCP second_brain по HTTP+Bearer.
+1. **systemd** brings up the `claude-agent-<agent>.service` unit (one per agent). The main process of the service is not `claude` but `watchdog.sh`.
+2. **`watchdog.sh <agent>`** — a long-lived daemon. If the tmux session is missing or the pane is frozen, it calls `start-agent.sh`. It also "reaps" an orphaned channel server (bun).
+3. **`start-agent.sh <agent>`** reads secrets from `.claude/secrets/` (chmod 600, never hardcoded), injects env, creates the tmux session `labops-<agent>`, and launches `claude … server:labops-channel` in it. It waits for the line `Listening for channel` (up to 30 s).
+4. **`claude`** (the engine) loads the channel plugin, spawns the child bun channel process over stdio, and connects the second_brain MCP over HTTP+Bearer.
 
-### Модель живости (self-healing) в `watchdog.sh`
+### Liveness model (self-healing) in `watchdog.sh`
 
-Watchdog снимает «хвост» панели tmux каждые ~30 c и классифицирует состояние. Единственный надёжный маркер «идёт ход» — футер **`esc to interrupt`**: Claude Code показывает его всё время хода и убирает в момент завершения. Строку с таймером (`Cooked for Ns`) использовать нельзя — она остаётся на экране после хода и в прошлом приводила к ложным рестартам простаивающего агента.
+The watchdog grabs the tmux pane "tail" every ~30 s and classifies the state. The only reliable "a turn is in progress" marker is the **`esc to interrupt`** footer: Claude Code shows it the whole time a turn runs and removes it the moment the turn finishes. The timer line (`Cooked for Ns`) must not be used — it stays on screen after the turn and, in the past, caused false restarts of an idle agent.
 
-Два «тихих» режима сбоя, оба невидимы для наивной проверки промпта (зависший TUI всё ещё рисует `❯`):
+Two "silent" failure modes, both invisible to a naive prompt check (a frozen TUI still draws `❯`):
 
-| Режим | Признак | Реакция watchdog |
+| Mode | Sign | Watchdog reaction |
 |---|---|---|
-| **(A) Замёрзший ход** (frozen turn) | `esc to interrupt` присутствует, но панель байт-в-байт не меняется (таймер встал) | подтверждение через ~60 c (2 цикла) → рестарт сессии |
-| **(B) Застрявший ввод** (stuck input) | в `❯` лежит неотправленный inbound, активного хода нет | эскалация: `Enter` → `Escape`+`Enter` (коммит bracketed-paste) → рестарт |
-| Потерян промпт | TUI не рендерит ни `❯`, ни `bypass permissions`, ни `Listening for channel` | немедленный рестарт |
-| Чистый idle-промпт | `❯` есть, поле ввода пустое | **не трогать** (здоровый агент) |
+| **(A) Frozen turn** | `esc to interrupt` present but the pane is byte-for-byte unchanged (timer stalled) | confirmation after ~60 s (2 cycles) → restart the session |
+| **(B) Stuck input** | an unsent inbound sits in `❯`, no active turn | escalation: `Enter` → `Escape`+`Enter` (commit the bracketed paste) → restart |
+| Lost prompt | the TUI renders neither `❯`, nor `bypass permissions`, nor `Listening for channel` | immediate restart |
+| Clean idle prompt | `❯` present, input field empty | **don't touch** (healthy agent) |
 
-Режим (B) срабатывает **только** при непустом поле ввода — иначе чистый idle-промпт никогда не тревожится (это была главная причина «молчащих» агентов до фикса nbsp-парсинга `❯`). Отдельная защита — реапинг **осиротевшего bun**: если родительский `claude` умер, а канал-сервер «завис» с `PPID==1`, он на 2-ядерном боксе уходит в EPIPE-петлю на ~90 % CPU и душит живые сессии; watchdog/start-agent убивают его `pkill` строго по пути конкретного агента.
+Mode (B) fires **only** on a non-empty input field — otherwise a clean idle prompt is never disturbed (this was the main cause of "silent" agents before the `❯` nbsp-parsing fix). A separate safeguard is **orphaned-bun reaping**: if the parent `claude` died and the channel server "hangs" with `PPID==1`, on a 2-core box it spins into an EPIPE loop at ~90% CPU and chokes live sessions; the watchdog/start-agent kill it with `pkill` strictly by the specific agent's path.
 
-### Три уровня самовосстановления
+<details>
+<summary><b>Three levels of self-healing</b></summary>
 
-| Что чинит | Кто чинит | Как |
+| What is fixed | Who fixes it | How |
 |---|---|---|
-| зависшая / мёртвая сессия агента | `watchdog.sh` | детектит застывшую панель → `start-agent.sh` пересоздаёт сессию (`handoff.md` хранит последние события) |
-| упавший watchdog | `systemd` | `Restart=on-failure` + `RestartSec=15` |
-| осиротевший bun (claude умер, bun на PID 1) | `watchdog.sh` / `start-agent.sh` | `pkill -9` по пути агента |
-| сервисы second_brain | `systemd` | отдельные службы `second_brain-*.service` |
+| frozen / dead agent session | `watchdog.sh` | detects a frozen pane → `start-agent.sh` recreates the session (`handoff.md` keeps the latest events) |
+| crashed watchdog | `systemd` | `Restart=on-failure` + `RestartSec=15` |
+| orphaned bun (claude died, bun on PID 1) | `watchdog.sh` / `start-agent.sh` | `pkill -9` by the agent's path |
+| second_brain services | `systemd` | separate `second_brain-*.service` units |
+
+</details>
 
 ---
 
-## 3. Слои памяти агента
+## Agent memory layers
 
-У агента четыре слоя памяти: первые три — локальные файлы в его воркспейсе (`@core/…`, частично всегда в контексте), четвёртый — общий мозг `labops-second-brain` по MCP. Иерархия истины: **live-проверка (exec/grep) → second_brain (общий мозг) → git-история → локальная память**. Память противоречит проверке — побеждает проверка.
+An agent has four memory layers: the first three are local files in its workspace (`@core/…`, partly always in context), the fourth is the shared brain `labops-second-brain` over MCP. Truth hierarchy: **live check (exec/grep) → second_brain (shared brain) → git history → local memory**. When memory contradicts the check, the check wins.
 
 ```mermaid
 flowchart TB
-  subgraph local["Локальная память агента (файлы воркспейса)"]
-    L1["L1 IDENTITY<br/>CLAUDE.md · rules.md · USER.md<br/>(всегда в контексте)"]
-    L2["L2 HOT<br/>hot/recent.md (24h) · hot/handoff.md<br/>(handoff кладёт boot-хук)"]
-    L3["L3 WARM<br/>warm/decisions.md (ротация >14д → COLD)<br/>COLD: MEMORY.md · LEARNINGS.md (по запросу)"]
+  subgraph local["Agent local memory (workspace files)"]
+    L1["L1 IDENTITY<br/>CLAUDE.md · rules.md · USER.md<br/>(always in context)"]
+    L2["L2 HOT<br/>hot/recent.md (24h) · hot/handoff.md<br/>(handoff placed by the boot hook)"]
+    L3["L3 WARM<br/>warm/decisions.md (rotates >14d → COLD)<br/>COLD: MEMORY.md · LEARNINGS.md (on demand)"]
   end
-  L4["L4 ОБЩИЙ МОЗГ<br/>labops-second-brain · recall/memory/swarm по MCP"]
+  L4["L4 SHARED BRAIN<br/>labops-second-brain · recall/memory/swarm over MCP"]
   L1 --> L2 --> L3 --> L4
 ```
 
-| Слой | Файлы / источник | В контексте | Кто правит |
+| Layer | Files / source | In context | Who edits |
 |---|---|---|---|
-| **L1 Идентичность** | `CLAUDE.md`, `rules.md`, `USER.md` | всегда (`@import`) | только оператор (RED-зона) |
-| **L2 Hot** | `hot/recent.md` (скользящие 24 ч), `hot/handoff.md` | да (handoff кладёт boot-хук) | агент автономно (GREEN) |
-| **L3 Warm** | `warm/decisions.md` (последние ~14 д, ротация в COLD) | да | агент с обоснованием (YELLOW) |
-| **COLD** | `MEMORY.md`, `LEARNINGS.md` | нет — по запросу (Read) | агент (GREEN) |
-| **L4 Общий** | second_brain `recall` / `memory` / `swarm` | нет — по запросу (MCP) | по RBAC-scopes |
+| **L1 Identity** | `CLAUDE.md`, `rules.md`, `USER.md` | always (`@import`) | Operator only (RED zone) |
+| **L2 Hot** | `hot/recent.md` (rolling 24 h), `hot/handoff.md` | yes (handoff placed by the boot hook) | agent autonomously (GREEN) |
+| **L3 Warm** | `warm/decisions.md` (last ~14 d, rotates into COLD) | yes | agent with justification (YELLOW) |
+| **COLD** | `MEMORY.md`, `LEARNINGS.md` | no — on demand (Read) | agent (GREEN) |
+| **L4 Shared** | second_brain `recall` / `memory` / `swarm` | no — on demand (MCP) | per RBAC scopes |
 
-Зоны доступа к файлам: **RED** (`CLAUDE.md`, `rules.md`, `USER.md`) — только оператор; **YELLOW** (`decisions.md`, `AGENTS.md`, `TOOLS.md`) — агент с обоснованием; **GREEN** (`LEARNINGS.md`, `hot/recent.md`, `feedback_*`) — агент автономно.
+File access zones: **RED** (`CLAUDE.md`, `rules.md`, `USER.md`) — Operator only; **YELLOW** (`decisions.md`, `AGENTS.md`, `TOOLS.md`) — agent with justification; **GREEN** (`LEARNINGS.md`, `hot/recent.md`, `feedback_*`) — agent autonomously.
 
-**Политика записи в общий мозг** зафиксирована в [`SECONDBRAIN_WRITE_RULES.md`](SECONDBRAIN_WRITE_RULES.md) — это единый canonical-файл (RED-зона), который симлинкуется в `core/` каждого агента и **@-импортится в его `CLAUDE.md`** (`@core/SECONDBRAIN_WRITE_RULES.md`). Правишь один файл → подхватывают все агенты. Четыре дисциплины: (1) `recall` **перед** записью — не плодить дубли; (2) **dual-write** важного — и в локальный `.md`, и в second_brain (идемпотентно по sha256); (3) писать **сразу**, не «потом» (компакция знания не выгружает); (4) писать в свой `scope`. Инструменты записи жёстко зафиксированы кодом: `create_decision_note`, `create_runbook_note`, `create_error_pattern_note`, `create_external_note`, `create_personal_note` (→ `15-personal`), `create_project_note` (→ `40-projects`), `create_handoff`, `append_daily_log`, `supersede_decision`.
+The **shared-brain write policy** is fixed in [`SECONDBRAIN_WRITE_RULES.md`](SECONDBRAIN_WRITE_RULES.md) — a single canonical file (RED zone) that is symlinked into every agent's `core/` and **@-imported into its `CLAUDE.md`** (`@core/SECONDBRAIN_WRITE_RULES.md`). Edit one file → every agent picks it up. Four disciplines: (1) `recall` **before** writing — don't breed duplicates; (2) **dual-write** what matters — both to the local `.md` and to second_brain (idempotent by sha256); (3) write **immediately**, not "later" (knowledge compaction does not flush); (4) write into your own `scope`. The write tools are hard-fixed in code: `create_decision_note`, `create_runbook_note`, `create_error_pattern_note`, `create_external_note`, `create_personal_note` (→ `15-personal`), `create_project_note` (→ `40-projects`), `create_handoff`, `append_daily_log`, `supersede_decision`.
 
 ---
 
-## 4. agent-template — скаффолдер
+## agent-template — scaffolder
 
-[`agent-template/`](agent-template/) — полный шаблон воркспейса Claude Code, проводнённый к общему `labops-second-brain` (memory + recall + swarm). Интерактивный `install.sh` спрашивает идентичность агента и параметры подключения к мозгу, рендерит шаблоны и собирает воркспейс в `~/.claude-lab/<agent-id>/.claude/`.
+[`agent-template/`](agent-template/) is a complete Claude Code workspace template, wired to the shared `labops-second-brain` (memory + recall + swarm). The interactive `install.sh` asks for the agent's identity and brain connection parameters, renders the templates, and assembles the workspace into `~/.claude-lab/<agent-id>/.claude/`.
 
-**Промпты при скаффолде** (попадают в плейсхолдеры `CLAUDE.md`): имя (`{{AGENT_NAME}}`), роль (`{{AGENT_ROLE}}` / `{{AGENT_ROLE_DESCRIPTION}}`), характер (`{{CHARACTER_TRAITS}}`), как обращаться к оператору, язык ответов, модель; плюс параметры мозга — `MCP_HOST`, `AGENT_BEARER`, `AGENT_SCOPES`.
+**Prompts during scaffolding** (they fill `CLAUDE.md` placeholders): name (`{{AGENT_NAME}}`), role (`{{AGENT_ROLE}}` / `{{AGENT_ROLE_DESCRIPTION}}`), character (`{{CHARACTER_TRAITS}}`), how to address the Operator, response language, model; plus brain parameters — `MCP_HOST`, `AGENT_BEARER`, `AGENT_SCOPES`.
 
-**Что генерируется:**
+**What gets generated:**
 
 ```
 ~/.claude-lab/<agent-id>/.claude/
-├── CLAUDE.md            # SOUL / идентичность (из templates/CLAUDE.md.template)
-├── .mcp.json            # ТОЛЬКО 3 сервера second_brain (memory/recall/swarm), chmod 600
-├── settings.json        # хуки SessionStart / Stop / PreCompact
-├── agent.env            # source перед запуском: MCP_HOST / AGENT_BEARER
+├── CLAUDE.md            # SOUL / identity (from templates/CLAUDE.md.template)
+├── .mcp.json            # ONLY the 3 second_brain servers (memory/recall/swarm), chmod 600
+├── settings.json        # SessionStart / Stop / PreCompact hooks
+├── agent.env            # source before launch: MCP_HOST / AGENT_BEARER
 ├── core/
 │   ├── USER.md · rules.md · AGENTS.md · MEMORY.md · LEARNINGS.md
-│   ├── warm/decisions.md           # WARM (последние 14д)
+│   ├── warm/decisions.md           # WARM (last 14d)
 │   └── hot/{recent.md, handoff.md, archive/, pre-compact/}
 ├── tools/TOOLS.md
-├── scripts/             # ротация памяти + second_brain-recall-on-start
+├── scripts/             # memory rotation + second_brain-recall-on-start
 ├── hooks/               # session-start, stop, precompact
 ├── logs/
-└── skills/              # симлинк на общий бандл скиллов
+└── skills/              # symlink to the shared skill bundle
 ```
 
-| Каталог шаблона | Содержимое |
+| Template directory | Contents |
 |---|---|
 | `templates/` | `CLAUDE.md`, `rules.md`, `USER.md`, `tools.md`, `agents.md`, `decisions.md`, `recent.md`, `MEMORY.md`, `LEARNINGS.md`, `mcp.json`, `settings.json` |
 | `hooks/` | `session-start-hook.sh`, `stop-hook.sh`, `precompact-hook.sh` |
 | `scripts/` | `memory-rotate.sh`, `trim-hot.sh`, `rotate-warm.sh`, `compress-warm.sh`, `second_brain-recall-on-start.sh` |
-| `docs/` | `ARCHITECTURE.md`, `MEMORY.md`, `HOOKS.md`, `MULTI-AGENT.md`, `SETUP-GUIDE.md`, `AGENT-LAWS.md`, … (16 файлов) |
+| `docs/` | `ARCHITECTURE.md`, `MEMORY.md`, `HOOKS.md`, `MULTI-AGENT.md`, `SETUP-GUIDE.md`, `AGENT-LAWS.md`, … (16 files) |
 
-Важно: `mcp.json.template` подключает агенту **только** second_brain (3 сервера). Канал (`labops-channel`) грузится отдельно при запуске через `claude … server:labops-channel`, а task-board MCP (`:8769`) агентам намеренно **не** заводится (heartbeat идёт отдельным кроном).
+Important: `mcp.json.template` connects the agent to **only** second_brain (3 servers). The channel (`labops-channel`) is loaded separately at launch via `claude … server:labops-channel`, and the task-board MCP (`:8769`) is deliberately **not** wired to agents (the heartbeat runs as a separate cron).
 
 ---
 
-## 5. Скилл `create-agent` (end-to-end)
+## The `create-agent` skill (end-to-end)
 
-> Лежит в `skills/create-agent/`. Это **ядро репозитория** — то, чем первый агент (Developer) разворачивает остальных. Описание ниже — целевое поведение скилла; он авторится параллельно лидом.
+> Lives in `skills/create-agent/`. This is the **core of the repository** — what the first agent (Developer) uses to roll out the rest. The description below is the skill's target behavior; it is authored in parallel by the lead.
 
-Когда Оператору нужен новый агент, он просит об этом Developer-агента в Telegram. Тот запускает скилл `create-agent`, который проводит развёртывание целиком — от диалога о роли до прошедшего smoke-теста — не требуя ручных шагов от оператора.
+When the Operator needs a new agent, they ask the Developer agent for it in Telegram. It runs the `create-agent` skill, which drives the whole deployment — from the role conversation to a passing smoke test — without requiring manual steps from the Operator.
 
 ```mermaid
 flowchart TD
-  S1["1. Диалог: роль и имя<br/>(чем агент занимается, как зовётся)"]
-  S2["2. Идентичность: провести по CLAUDE.md / rules.md<br/>(характер, зоны, принципы)"]
-  S3["3. Скаффолд воркспейса<br/>agent-template → ~/.claude-lab/&lt;agent&gt;/.claude"]
-  S4["4. Telegram-бот<br/>@BotFather → токен → channel.env"]
-  S5["5. Голос<br/>скилл groq-voice (GROQ_API_KEY)"]
-  S6["6. second_brain-токен<br/>Bearer + scopes от labops-second-brain"]
-  S7["7. Автозапуск<br/>systemd-юнит + watchdog"]
-  S8["8. Smoke-тест<br/>проверка канала, recall, swarm, реакций"]
+  S1["1. Conversation: role and name<br/>(what the agent does, what it's called)"]
+  S2["2. Identity: walk through CLAUDE.md / rules.md<br/>(character, zones, principles)"]
+  S3["3. Scaffold the workspace<br/>agent-template → ~/.claude-lab/&lt;agent&gt;/.claude"]
+  S4["4. Telegram bot<br/>@BotFather → token → channel.env"]
+  S5["5. Voice<br/>groq-voice skill (GROQ_API_KEY)"]
+  S6["6. second_brain token<br/>Bearer + scopes from labops-second-brain"]
+  S7["7. Autostart<br/>systemd unit + watchdog"]
+  S8["8. Smoke test<br/>channel, recall, swarm, reactions"]
   S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
 ```
 
-| Шаг | Что делает | Артефакт |
+| Step | What it does | Artifact |
 |---|---|---|
-| 1. Роль и имя | спрашивает у Оператора роль (кодер / контент / ресёрч / …) и `<agent-id>` | — |
-| 2. Идентичность | проводит по `CLAUDE.md` (SOUL, характер, принципы) и `rules.md` | заполненные RED-файлы |
-| 3. Скаффолд | прогоняет `agent-template` → рендерит шаблоны | `~/.claude-lab/<agent>/.claude/` |
-| 4. Telegram-бот | регистрирует бота через `@BotFather`, пишет токен | `channel.env` (`/etc/labops-plugin/<agent>/` или `shared/state/<agent>/telegram/`) |
-| 5. Голос | подключает скилл `groq-voice` (транскрипция `.ogg`) | `GROQ_API_KEY` в секретах |
-| 6. Токен мозга | запрашивает у `labops-second-brain` Bearer + `scopes` | `.mcp.json` (chmod 600) |
-| 7. Автозапуск | ставит `claude-agent-<agent>.service` + watchdog, добавляет в roster | юнит + строка в `agents.conf` |
-| 8. Smoke-тест | финальная проверка: канал слушает, recall/swarm отвечают, реакции ставятся | зелёный прогон |
+| 1. Role and name | asks the Operator for the role (coder / content / research / …) and the `<agent-id>` | — |
+| 2. Identity | walks through `CLAUDE.md` (SOUL, character, principles) and `rules.md` | filled-in RED files |
+| 3. Scaffold | runs `agent-template` → renders the templates | `~/.claude-lab/<agent>/.claude/` |
+| 4. Telegram bot | registers a bot via `@BotFather`, writes the token | `channel.env` (`/etc/labops-plugin/<agent>/` or `shared/state/<agent>/telegram/`) |
+| 5. Voice | wires up the `groq-voice` skill (`.ogg` transcription) | `GROQ_API_KEY` in secrets |
+| 6. Brain token | requests a Bearer + `scopes` from `labops-second-brain` | `.mcp.json` (chmod 600) |
+| 7. Autostart | installs `claude-agent-<agent>.service` + watchdog, adds to the roster | unit + a line in `agents.conf` |
+| 8. Smoke test | final check: channel is listening, recall/swarm respond, reactions are set | green run |
 
-Токен Telegram-бота извлекается **не из хардкода**, а из `channel.env` через `orchestration/lib/agents.sh::agent_bot_token` (ищет `/etc/labops-plugin/<agent>/channel.env`, затем `$CLAUDE_LAB/shared/state/<agent>/telegram/channel.env`).
+The Telegram bot token is pulled **not from a hardcode** but from `channel.env` via `orchestration/lib/agents.sh::agent_bot_token` (it looks in `/etc/labops-plugin/<agent>/channel.env`, then `$CLAUDE_LAB/shared/state/<agent>/telegram/channel.env`).
 
 ---
 
-## 6. Хуки жизненного цикла
+## Lifecycle hooks & swarm automation
 
-Хук — **не сервер**: движок Claude Code в определённый момент испускает событие, читает `settings.json`, спавнит команду как дочерний процесс (на stdin — JSON с путём к транскрипту и `session_id`), скрипт отрабатывает за миллисекунды-секунды и выходит. Все три хука **fail-open**: любая ошибка → `exit 0`, харнесс никогда не подвисает. Подробнее о загрузке `settings.json` — в `labops-tg-plugin/docs/06`.
+### Lifecycle hooks
 
-| Событие | Хук (`agent-template/hooks/`) | Что делает |
+A hook is **not a server**: the Claude Code engine emits an event at a defined moment, reads `settings.json`, spawns the command as a child process (stdin carries JSON with the transcript path and `session_id`), the script does its work in milliseconds-to-seconds and exits. All three hooks are **fail-open**: any error → `exit 0`, the harness never hangs. More on how `settings.json` is loaded — in `labops-tg-plugin/docs/06`.
+
+| Event | Hook (`agent-template/hooks/`) | What it does |
 |---|---|---|
-| **SessionStart** | `session-start-hook.sh` | логирует старт; если есть `MCP_HOST`+`AGENT_BEARER` — зовёт `second_brain-recall-on-start.sh` (дописывает блок релевантных recall в `hot/recent.md`); surface `handoff.md`. В рое также `agent-boot-sequence.sh`: 👀 на свежие сообщения + `swarm.list_my_pending()` (забрать делегированные задачи — pull-страховка) |
-| **Stop** | `stop-hook.sh` | дописывает 200-символьный сниппет хода в `hot/recent.md` и подробную JSON-строку в `logs/verbose-YYYY-MM-DD.jsonl`. В рое также `read-receipt-hook.ts` (POST `/hooks/react` → 👌) и `reflect-error-pattern.sh` (если Оператор поправил → нудж записать error-pattern через `decision:"block"`) |
-| **PreCompact** | `precompact-hook.sh` | снапшотит `hot/recent.md` в `hot/pre-compact/` перед авто-компакцией, держит последние `KEEP_SNAPSHOTS` (10) |
+| **SessionStart** | `session-start-hook.sh` | logs the start; if `MCP_HOST`+`AGENT_BEARER` are present — calls `second_brain-recall-on-start.sh` (appends a block of relevant recall to `hot/recent.md`); surfaces `handoff.md`. In a swarm, also `agent-boot-sequence.sh`: 👀 on fresh messages + `swarm.list_my_pending()` (pull delegated tasks — a pull safeguard) |
+| **Stop** | `stop-hook.sh` | appends a 200-char turn snippet to `hot/recent.md` and a detailed JSON line to `logs/verbose-YYYY-MM-DD.jsonl`. In a swarm, also `read-receipt-hook.ts` (POST `/hooks/react` → 👌) and `reflect-error-pattern.sh` (if the Operator corrected something → nudge to record an error-pattern via `decision:"block"`) |
+| **PreCompact** | `precompact-hook.sh` | snapshots `hot/recent.md` into `hot/pre-compact/` before auto-compaction, keeps the last `KEEP_SNAPSHOTS` (10) |
 
-Все хуки несут `sdk-guard`: при `CLAUDE_SDK_CHILD=1` (или `entrypoint=sdk-ts`) сразу выходят, чтобы не зацикливаться в дочерних Agent-SDK-сессиях.
+All hooks carry an `sdk-guard`: on `CLAUDE_SDK_CHILD=1` (or `entrypoint=sdk-ts`) they exit immediately, so they don't loop inside child Agent-SDK sessions.
+
+### Swarm automation
+
+The scripts in [`orchestration/`](orchestration/) are trigger-driven "one-shots" (cron / event), not long-running processes. The agent roster is taken via `orchestration/lib/agents.sh::list_agents` — **not hardcoded**: first `$CLAUDE_LAB/agents.conf` (one line per agent-id, see `agents.conf.example`), otherwise a scan of `$CLAUDE_LAB/*/.claude` excluding infra directories (`shared`, `logs`, `mcp-servers`).
+
+<details>
+<summary><b>Orchestration scripts</b></summary>
+
+| Script | Trigger | Purpose |
+|---|---|---|
+| `heartbeat-all.sh` | cron, once a minute | heartbeat only for live tmux sessions → the supervisor tells live agents from dead ones (dead agents' `last_seen` goes stale, their tasks get reclaimed) |
+| `night-learnings.sh` | cron, 02:00 UTC | nightly learnings cycle: `swarm.notify` each → review 7-day learnings → update `rules.md` |
+| `message-reaction-daemon.sh` | per-agent background daemon | sets 👀 on **every** inbound (text/voice/stickers) immediately, polling every ~3 s |
+| `start-reaction-daemons.sh` | `@reboot` | brings up reaction daemons for all roster agents, with PID files |
+| `set-message-reaction.sh` / `handle-incoming-messages.sh` | helpers | reaction and inbound-handling primitives |
+| `vault-audit-broadcast.sh` + `second_brain-vault-audit.sh` | on demand / cron | broadcasts a task to the swarm to check and fill in the shared vault |
+| `agent-boot-sequence.sh` | SessionStart | deterministically pulls delegated tasks (`list_my_pending`) |
+| `reflect-error-pattern.sh` | Stop | nudge to record an error-pattern on a correction from the Operator |
+| `update-rules.sh`, `tg-send.sh`, `second_brain-heartbeat.py` | helpers | rules updates, sending to TG, heartbeat client |
+
+</details>
+
+**Two-stage reactions (2026-06-25):** 👀 "received" — instantly on receipt (≈1 s, fire-and-forget) and 👌 "done" — at the end of the turn (the read-receipt hook). Two emoji = two meanings, so the signal doesn't "lie" on a busy session. `✅` is deliberately not used — it's not in the Telegram bot reaction whitelist.
 
 ---
 
-## 7. Автоматизация роя
+## Bundled skills
 
-Скрипты в [`orchestration/`](orchestration/) — это «однодневки» по триггеру (cron / событие), а не постоянные процессы. Roster агентов берётся через `orchestration/lib/agents.sh::list_agents` — **не хардкодом**: сначала `$CLAUDE_LAB/agents.conf` (по строке на agent-id, см. `agents.conf.example`), иначе скан `$CLAUDE_LAB/*/.claude` с исключением инфра-каталогов (`shared`, `logs`, `mcp-servers`).
+The bundle in [`skills/`](skills/) is installed by symlink into `~/.claude/skills/<name>` or per-agent. The skills are independent and don't depend on second_brain.
 
-| Скрипт | Триггер | Назначение |
+| Skill | What it does | Needs |
 |---|---|---|
-| `heartbeat-all.sh` | cron, раз в минуту | heartbeat только живых tmux-сессий → супервизор отличает живых агентов от мёртвых (у мёртвых `last_seen` устаревает, их задачи реклеймятся) |
-| `night-learnings.sh` | cron, 02:00 UTC | ночной learnings-цикл: `swarm.notify` каждому → review 7-дневных learnings → обновить `rules.md` |
-| `message-reaction-daemon.sh` | фоновый демон на агента | ставит 👀 на **все** входящие (текст/голос/стикеры) немедленно, опрос каждые ~3 c |
-| `start-reaction-daemons.sh` | `@reboot` | поднимает reaction-демоны для всех агентов roster, с PID-файлами |
-| `set-message-reaction.sh` / `handle-incoming-messages.sh` | вспомогательные | примитивы реакций и обработки входящих |
-| `vault-audit-broadcast.sh` + `second_brain-vault-audit.sh` | по запросу / cron | рассылает рою задачу проверить и дозаполнить общий vault |
-| `agent-boot-sequence.sh` | SessionStart | детерминированно забирает делегированные задачи (`list_my_pending`) |
-| `reflect-error-pattern.sh` | Stop | нудж записать error-pattern при коррекции от Оператора |
-| `update-rules.sh`, `tg-send.sh`, `second_brain-heartbeat.py` | вспомогательные | обновление правил, отправка в TG, heartbeat-клиент |
-
-**Двухстадийные реакции (2026-06-25):** 👀 «получил» — мгновенно при приёме (≈1 c, fire-and-forget) и 👌 «готово» — в конце хода (read-receipt-хук). Два эмодзи = два смысла, сигнал не «врёт» на занятой сессии. `✅` намеренно не используется — его нет в whitelist реакций Telegram-ботов.
+| `groq-voice` | transcribes voice `.ogg` via Groq Whisper (required on `<media:audio>`) | `GROQ_API_KEY` |
+| `second_brain-doctor` | agent-side diagnostics of second_brain: connect, identity, recall, swarm, hooks-parity, webhooks, repo, MCP-URL safety; output is redacted (secrets masked) | — |
+| `mcp-builder` | a guide (from Anthropic) to building new MCP servers (FastMCP / TS SDK) | — |
+| `markdown-new` | clean Markdown from any URL via `markdown.new` (a replacement for the noisy web_fetch, ~80% token savings) | — |
+| `transcript` | YouTube transcripts via TranscriptAPI.com | `TRANSCRIPT_API_KEY` |
+| `agent-browser` | browser automation via CDP (navigation, forms, screenshots) | the `agent-browser` binary |
 
 ---
 
-## 8. Скиллы в комплекте
+## Installation & model/auth
 
-Бандл в [`skills/`](skills/) ставится симлинком в `~/.claude/skills/<name>` или пер-агентно. Скиллы независимы и не зависят от second_brain.
+> The root `install.sh` is authored in parallel by the lead; below is its target behavior.
 
-| Скилл | Что делает | Нужно |
-|---|---|---|
-| `groq-voice` | транскрипция голосовых `.ogg` через Groq Whisper (обязательно при `<media:audio>`) | `GROQ_API_KEY` |
-| `second_brain-doctor` | агент-сайд-диагностика second_brain: коннект, identity, recall, swarm, hooks-parity, webhooks, repo, безопасность MCP-URL; вывод редактируется (секреты маскируются) | — |
-| `mcp-builder` | гайд (от Anthropic) по созданию новых MCP-серверов (FastMCP / TS SDK) | — |
-| `markdown-new` | чистый Markdown из любого URL через `markdown.new` (замена шумному web_fetch, ~80 % экономии токенов) | — |
-| `transcript` | транскрипты YouTube через TranscriptAPI.com | `TRANSCRIPT_API_KEY` |
-| `agent-browser` | браузерная автоматизация через CDP (навигация, формы, скриншоты) | бинарь `agent-browser` |
+The root `install.sh` installs the **first agent — Developer** turnkey, end-to-end, and runs tests/smoke at the end. Internally it uses the same primitives as the `create-agent` skill: scaffold via `agent-template`, bot registration, voice, second_brain token, systemd autostart.
 
----
+**Dependencies (the script checks them):**
 
-## 9. Установка
-
-> `install.sh` в корне репозитория авторится параллельно лидом; ниже — его целевое поведение.
-
-Корневой `install.sh` ставит **первого агента — Developer / Разработчик** «под ключ» end-to-end и в конце прогоняет тесты/smoke. Внутри он использует те же примитивы, что и скилл `create-agent`: скаффолд через `agent-template`, регистрация бота, голос, second_brain-токен, systemd-автозапуск.
-
-**Зависимости (скрипт их проверяет):**
-
-- установленный **`labops-second-brain`** — чтобы выдать агенту Bearer-токен и поднять MCP `memory`/`recall`/`swarm`;
-- установленный **`labops-tg-plugin`** — канал, через который агент общается в Telegram;
-- **Claude Code (движок) + подключённая модель** — `npm i -g @anthropic-ai/claude-code`, затем **разово авторизоваться по подписке**: `claude setup-token` (Max/Pro, первая сторона — без third-party риска). Модель агента задаётся в `settings.json` (поле `model`); диалог установки спрашивает её и для Developer рекомендует **`opus` (Opus 4.8)**. Без авторизации агент стартует под systemd, но не достучится до модели — это ловит smoke-тест (шаг «модель отвечает»).
+- an installed **`labops-second-brain`** — to issue the agent a Bearer token and bring up the MCP `memory`/`recall`/`swarm`;
+- an installed **`labops-tg-plugin`** — the channel through which the agent talks on Telegram;
+- **Claude Code (the engine) + a connected model** — `npm i -g @anthropic-ai/claude-code`, then a **one-time subscription sign-in**: `claude setup-token` (Max/Pro, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); the install dialog asks for it and recommends **`opus` (Opus 4.8)** for the Developer. Without sign-in the agent starts under systemd but can't reach the model — the smoke test catches this (the "model responds" step).
 
 ```bash
-# 1. Сначала поднять соседние репозитории (мозг + канал)
-#    см. labops-second-brain/README и labops-tg-plugin/README
+# 1. Bring up the sibling repos first (brain + channel)
+#    see labops-second-brain/README and labops-tg-plugin/README
 
-# 1a. Подключить движок и модель
+# 1a. Connect the engine and the model
 npm i -g @anthropic-ai/claude-code
-claude setup-token       # вход по подписке Max/Pro (выбор модели — в диалоге установки ниже)
+claude setup-token       # sign in with a Max/Pro subscription (model choice is in the install dialog below)
 
-# 2. Установить Developer-агента из этого репозитория
+# 2. Install the Developer agent from this repository
 cd labops-agent-architecture
-bash install.sh          # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
+bash install.sh          # model → identity → scaffold → bot → voice → token → systemd → smoke
 
-# 3. После установки рой расширяется самим Developer-агентом
-#    (он вызывает скилл create-agent по просьбе Оператора)
+# 3. After install, the swarm grows via the Developer agent itself
+#    (it invokes the create-agent skill at the Operator's request)
 ```
 
-Скаффолд одного воркспейса без полного развёртывания — через `agent-template/install.sh` (см. [`agent-template/README.md`](agent-template/README.md)).
+Scaffolding a single workspace without a full deployment — via `agent-template/install.sh` (see [`agent-template/README.md`](agent-template/README.md)).
 
----
+### Tests
 
-## 10. Переменные и настройки
-
-| Переменная | Где | Назначение |
-|---|---|---|
-| `MCP_HOST` | `.mcp.json`, `agent.env` | базовый URL second_brain (рендерит `${MCP_HOST}/memory/mcp` и т.д.) |
-| `AGENT_BEARER` | `.mcp.json` (chmod 600) | Bearer-токен агента для MCP (в БД хранится только `token_sha256`) |
-| `AGENT_SCOPES` | install | RBAC-scopes на чтение/запись (scope = первая папка пути в vault) |
-| `CLAUDE_LAB` | окружение | корень лаборатории (по умолчанию `$HOME/.claude-lab`); roster и токены ищутся относительно него |
-| `GROQ_API_KEY` | `.claude/secrets/groq-api-key` | транскрипция голоса (Groq Whisper) |
-| `TELEGRAM_BOT_TOKEN` | `.claude/secrets/telegram-bot-token`, `channel.env` | токен бота агента (`@BotFather`) |
-| `TELEGRAM_WEBHOOK_TOKEN` | `.claude/secrets/telegram-webhook-token` | Bearer для входящих POST на `/hooks/*` |
-| `TELEGRAM_WEBHOOK_PORT` | `start-agent.sh` (config, не секрет) | порт webhook агента (`:8089+`, по агенту) |
-| `TELEGRAM_ALLOWED_USER_IDS` | `start-agent.sh` | allowlist собеседников — только Оператор; чужие отбрасываются на гейте |
-| `TELEGRAM_STATE_DIR` | `start-agent.sh` | `~/.claude/channels/labops-<agent>` — состояние канала |
-| `TELEGRAM_WORKSPACE_ROOT` | `start-agent.sh` | корень для вложений (защита от path-traversal) |
-| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | `settings.json` | окно авто-компакции (400000) |
-| `KEEP_SNAPSHOTS` | `precompact-hook.sh` | сколько pre-compact снапшотов держать (10) |
-| `CLAUDE_SDK_CHILD` | окружение | `=1` → хуки выходят сразу (anti-recursion для Agent SDK) |
-
-Секреты лежат в `~/.claude-lab/<agent>/.claude/secrets/` с `chmod 600` и **никогда не хардкодятся** в скриптах; `start-agent.sh` падает быстро, если секрет отсутствует/нечитаем.
-
----
-
-## 11. Тесты
-
-- **Синтаксис-чек bash** — `bash -n` по всем скриптам `orchestration/*.sh`, `agent-template/hooks/*.sh`, `agent-template/scripts/*.sh` (хуки fail-open, поэтому статической проверки + smoke достаточно).
-- **Self-test репозитория** (`test.sh`) — синтаксис bash, компиляция python, отсутствие секретов и проверка, что модель/авторизация учтены (`settings.json` задаёт `model`, `create-agent` пробрасывает выбор модели, есть шаг `claude setup-token`).
-- **Smoke-тест** в конце `install.sh` / `create-agent`: **модель отвечает** (Claude Code авторизован, `claude -p ping`); сессия агента дошла до `Listening for channel`; канал отвечает; `recall`/`swarm` доступны по Bearer; реакции 👀/👌 ставятся.
-- **`second_brain-doctor`** (скилл) — повторяемая агент-сайд-диагностика связки second_brain после установки.
+- **Bash syntax check** — `bash -n` over all scripts in `orchestration/*.sh`, `agent-template/hooks/*.sh`, `agent-template/scripts/*.sh` (hooks are fail-open, so static check + smoke is enough).
+- **Repository self-test** (`test.sh`) — bash syntax, python compile, absence of secrets, and a check that model/auth is accounted for (`settings.json` sets `model`, `create-agent` passes the model choice through, there's a `claude setup-token` step).
+- **Smoke test** at the end of `install.sh` / `create-agent`: **the model responds** (Claude Code is authorized, `claude -p ping`); the agent session reached `Listening for channel`; the channel responds; `recall`/`swarm` are reachable by Bearer; reactions 👀/👌 are set.
+- **`second_brain-doctor`** (skill) — repeatable agent-side diagnostics of the second_brain link after install.
 
 ```bash
-# Синтаксис всех bash-скриптов
+# Syntax check of all bash scripts
 find orchestration agent-template -name '*.sh' -exec bash -n {} \;
+
+# Re-run the self-test without installing an agent
+bash install.sh --test-only
 ```
 
 ---
 
-## 11a. Если что-то не работает (troubleshooting)
+## Configuration & environment
 
-Зелёный smoke означает: воркспейс создан, мозг отвечает по Bearer, токен бота валиден (`getMe`), модель отвечает, сервис `active`. Он **не** доказывает, что вы написали боту с разрешённого `user_id`. Частые случаи:
+<details>
+<summary><b>Environment variables & settings</b></summary>
 
-| Симптом | Где смотреть / что делать |
-|---|---|
-| Бот молчит в Telegram | `tmux ls` → есть ли `labops-<agent>`? `tmux attach -t labops-<agent>` — видно ошибку. Проверьте, что ваш `user_id` в `TELEGRAM_ALLOWED_USER_IDS` (`channel.env`). |
-| Сервис не `active` | `systemctl status claude-agent-<agent>` + `journalctl -u claude-agent-<agent> -n50`. Частая причина — `claude` не авторизован (`claude setup-token`) или нет `channel.env`. |
-| `no TELEGRAM_BOT_TOKEN` в логе | `channel.env` не там, где ищет `start-agent.sh` — он берёт из `lib/agents.sh` (`/etc/labops-plugin/<agent>/` или `$CLAUDE_LAB/shared/state/<agent>/telegram/`). Пересоздайте через `new-agent.sh`. |
-| «Модель не ответила» | `claude setup-token` под пользователем агента, затем `systemctl restart claude-agent-<agent>`. |
-| `second_brain недоступен` | Проверьте `MCP_HOST` в `agent.env` (локально `127.0.0.1:8767`, удалённо — IP/домен VPS) и что мозг поднят. |
-| Повторный запуск/коллизия имени | `new-agent.sh` не затирает существующего агента; для донастройки поверх — `REUSE_EXISTING=1`. |
-
-Перезапуск self-test без установки агента: `bash install.sh --test-only`.
-
----
-
-## 12. Связанные репозитории
-
-| Репозиторий | Слой | Что предоставляет |
+| Variable | Where | Purpose |
 |---|---|---|
-| **labops-agent-architecture** (этот) | рантайм / lifecycle | воркспейсы, память, watchdog/systemd, хуки, автоматизация роя, `create-agent` |
-| **labops-tg-plugin** | канал | пер-агентный Telegram-бот, голос, реакции, webhook `:8089+`, MCP-инструменты канала (`reply`/`react`/…) |
-| **labops-second-brain** | память | Postgres+pgvector, MCP `memory:8767` / `recall:8768` / `swarm:8766` / `task:8769`, RBAC по Bearer |
+| `MCP_HOST` | `.mcp.json`, `agent.env` | base URL of second_brain (renders `${MCP_HOST}/memory/mcp` etc.) |
+| `AGENT_BEARER` | `.mcp.json` (chmod 600) | the agent's Bearer token for MCP (only `token_sha256` is stored in the DB) |
+| `AGENT_SCOPES` | install | RBAC scopes for read/write (a scope = the first path folder in the vault) |
+| `CLAUDE_LAB` | environment | the lab root (default `$HOME/.claude-lab`); roster and tokens are resolved relative to it |
+| `GROQ_API_KEY` | `.claude/secrets/groq-api-key` | voice transcription (Groq Whisper) |
+| `TELEGRAM_BOT_TOKEN` | `.claude/secrets/telegram-bot-token`, `channel.env` | the agent's bot token (`@BotFather`) |
+| `TELEGRAM_WEBHOOK_TOKEN` | `.claude/secrets/telegram-webhook-token` | Bearer for inbound POSTs to `/hooks/*` |
+| `TELEGRAM_WEBHOOK_PORT` | `start-agent.sh` (config, not a secret) | the agent's webhook port (`:8089+`, per agent) |
+| `TELEGRAM_ALLOWED_USER_IDS` | `start-agent.sh` | allowlist of interlocutors — Operator only; others are dropped at the gate |
+| `TELEGRAM_STATE_DIR` | `start-agent.sh` | `~/.claude/channels/labops-<agent>` — channel state |
+| `TELEGRAM_WORKSPACE_ROOT` | `start-agent.sh` | root for attachments (path-traversal protection) |
+| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | `settings.json` | auto-compaction window (400000) |
+| `KEEP_SNAPSHOTS` | `precompact-hook.sh` | how many pre-compact snapshots to keep (10) |
+| `CLAUDE_SDK_CHILD` | environment | `=1` → hooks exit immediately (anti-recursion for the Agent SDK) |
+
+Secrets live in `~/.claude-lab/<agent>/.claude/secrets/` with `chmod 600` and are **never hardcoded** in scripts; `start-agent.sh` fails fast if a secret is missing/unreadable.
+
+</details>
 
 ---
 
-## 13. Лицензия
+## Troubleshooting
 
-Проприетарная (Proprietary) — © 2026 LabOps.ai. Все права защищены. См. [LICENSE](LICENSE).
+A green smoke means: the workspace was created, the brain responds by Bearer, the bot token is valid (`getMe`), the model responds, the service is `active`. It does **not** prove you messaged the bot from an allowed `user_id`. Common cases:
+
+<details>
+<summary><b>Symptoms and fixes</b></summary>
+
+| Symptom | Where to look / what to do |
+|---|---|
+| The bot is silent in Telegram | `tmux ls` → is there a `labops-<agent>`? `tmux attach -t labops-<agent>` — the error is visible. Check that your `user_id` is in `TELEGRAM_ALLOWED_USER_IDS` (`channel.env`). |
+| The service is not `active` | `systemctl status claude-agent-<agent>` + `journalctl -u claude-agent-<agent> -n50`. A common cause — `claude` is not authorized (`claude setup-token`) or there's no `channel.env`. |
+| `no TELEGRAM_BOT_TOKEN` in the log | `channel.env` isn't where `start-agent.sh` looks — it takes it from `lib/agents.sh` (`/etc/labops-plugin/<agent>/` or `$CLAUDE_LAB/shared/state/<agent>/telegram/`). Recreate via `new-agent.sh`. |
+| "The model didn't respond" | `claude setup-token` under the agent's user, then `systemctl restart claude-agent-<agent>`. |
+| `second_brain unreachable` | Check `MCP_HOST` in `agent.env` (locally `127.0.0.1:8767`, remotely — VPS IP/domain) and that the brain is up. |
+| Re-run / name collision | `new-agent.sh` doesn't overwrite an existing agent; to tune on top — `REUSE_EXISTING=1`. |
+
+</details>
+
+---
+
+## FAQ
+
+<details>
+<summary><b>Do I have to install every agent by hand?</b></summary>
+
+No. You install only the first agent — Developer — with `bash install.sh`. From there the swarm grows itself: you ask the Developer agent in Telegram for a new agent, and it runs the `create-agent` skill end-to-end (scaffold → bot → voice → token → systemd → smoke).
+
+</details>
+
+<details>
+<summary><b>Does this work on macOS?</b></summary>
+
+Partly. The runtime targets Linux + systemd + tmux. On macOS / without systemd you can run an agent manually in tmux, but not as a service — there's no autostart or self-healing.
+
+</details>
+
+<details>
+<summary><b>Which model does the Developer use, and how do I authorize?</b></summary>
+
+The agent's model is set in `settings.json` (the `model` field). The install dialog asks for it and recommends `opus` (Opus 4.8) for the Developer. Authorization is a one-time `claude setup-token` against a Max/Pro subscription (first-party, no third-party risk). Without it the agent starts under systemd but can't reach the model — the smoke test catches this.
+
+</details>
+
+<details>
+<summary><b>Where are tokens and secrets stored?</b></summary>
+
+Secrets live in `~/.claude-lab/<agent>/.claude/secrets/` with `chmod 600` and are never hardcoded. The Telegram bot token is read from `channel.env` via `orchestration/lib/agents.sh::agent_bot_token`. In the DB, second_brain stores only `token_sha256`, never the raw Bearer.
+
+</details>
+
+<details>
+<summary><b>How does an agent survive a crash?</b></summary>
+
+Self-healing is nested: systemd holds the watchdog (`Restart=on-failure`, `RestartSec=15`), the watchdog detects a frozen/dead tmux pane and has `start-agent.sh` recreate the session, and an orphaned channel server (bun on PID 1) is reaped by path. `handoff.md` carries the latest events across a restart.
+
+</details>
+
+---
+
+## Part of labops
+
+| Repository | Layer | Provides |
+|---|---|---|
+| **labops-agent-architecture** (this one) | runtime / lifecycle | workspaces, memory, watchdog/systemd, hooks, swarm automation, `create-agent` |
+| **[labops-tg-plugin](https://github.com/dediukhinpa/labops-tg-plugin)** | channel | per-agent Telegram bot, voice, reactions, webhook `:8089+`, channel MCP tools (`reply`/`react`/…) |
+| **[labops-second-brain](https://github.com/dediukhinpa/labops-second-brain)** | memory | Postgres+pgvector, MCP `memory:8767` / `recall:8768` / `swarm:8766` / `task:8769`, RBAC by Bearer |
+
+---
+
+## License
+
+Proprietary — © 2026 LabOps.ai. All rights reserved. See [LICENSE](./LICENSE).
