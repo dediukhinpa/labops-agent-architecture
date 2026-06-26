@@ -48,7 +48,7 @@
 
 ```mermaid
 flowchart LR
-  Operator["Оператор (Оператор)"] -->|install.sh| Dev["Агент Developer / Разработчик"]
+  Operator["Оператор"] -->|install.sh| Dev["Агент Developer / Разработчик"]
   Dev -->|скилл create-agent| A2["Агент &lt;agent-2&gt;"]
   Dev -->|скилл create-agent| A3["Агент &lt;agent-3&gt;"]
   Dev -->|скилл create-agent| An["Агент &lt;agent-N&gt;"]
