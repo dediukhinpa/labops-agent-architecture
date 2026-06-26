@@ -25,7 +25,10 @@ notify_op() {
   [ "${WATCHDOG_TG_ALERTS:-1}" = "1" ] || return 0
   [ -n "$agent" ] || return 0
 
-  local msg="🔧 watchdog/${agent}: ${body}"
+  # Source label shown to the Operator; override with NOTIFY_TAG (e.g. a backend
+  # monitor sets NOTIFY_TAG="second_brain-monitor"). Defaults to "watchdog/<agent>".
+  local label="${NOTIFY_TAG:-watchdog/${agent}}"
+  local msg="🔧 ${label}: ${body}"
   local cooldown="${WATCHDOG_ALERT_COOLDOWN:-300}"
   local now last
   now="$(date +%s)"

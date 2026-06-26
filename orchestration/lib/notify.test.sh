@@ -57,4 +57,10 @@ WATCHDOG_TG_ALERTS=0 notify_op demo "must not send"
 )
 [ -f "$TMP/survived" ] || fail "notify_op aborted a set -e caller on send failure"
 
-echo "notify.sh: all 6 checks passed"
+# 7. NOTIFY_TAG overrides the displayed source label (used by second_brain-monitor)
+: > "$SENT"
+NOTIFY_TAG="sb-monitor" WATCHDOG_ALERT_COOLDOWN=0 notify_op demo "ping"
+grep -q "sb-monitor" "$SENT" || fail "NOTIFY_TAG not honored in the message"
+grep -q "watchdog/demo" "$SENT" && fail "default tag leaked while NOTIFY_TAG was set"
+
+echo "notify.sh: all 7 checks passed"

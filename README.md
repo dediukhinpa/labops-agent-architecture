@@ -200,11 +200,12 @@ Mode (B) fires **only** on a non-empty input field — otherwise a clean idle pr
 | crashed watchdog | `systemd` | `Restart=on-failure` + `RestartSec=15` |
 | orphaned bun (claude died, bun on PID 1) | `watchdog.sh` / `start-agent.sh` | `pkill -9` by the agent's path |
 | second_brain services | `systemd` | separate `second_brain-*.service` units |
+| MCP server / worker wedged or crash-looping | `second_brain-monitor.sh` (systemd timer, ~60 s) | `systemctl is-active` + restart-delta + an HTTP probe of `/mcp` (catches *wedged-but-alive*) → Telegram alert on the down/up transition |
 
 </details>
 
 > [!NOTE]
-> **Operator alerts.** On each of these events the watchdog also pings the Operator in Telegram (via the agent's own bot, `tg-send.sh` → `lib/notify.sh`): a session restart **with its cause**, a lost/unrendered prompt, an unsubmitted ("stuck") prompt, and a reaped orphaned channel server. Alerts are best-effort (a failed send never disrupts the watchdog) and throttled per-message, so flapping doesn't spam. Toggle with `WATCHDOG_TG_ALERTS` (default `1`), tune `WATCHDOG_ALERT_COOLDOWN` (seconds, default `300`), or route to a dedicated chat with `WATCHDOG_ALERT_CHAT_ID`.
+> **Operator alerts.** On each of these events the watchdog also pings the Operator in Telegram (via the agent's own bot, `tg-send.sh` → `lib/notify.sh`): a session restart **with its cause**, a lost/unrendered prompt, an unsubmitted ("stuck") prompt, and a reaped orphaned channel server. Alerts are best-effort (a failed send never disrupts the watchdog) and throttled per-message, so flapping doesn't spam. Toggle with `WATCHDOG_TG_ALERTS` (default `1`), tune `WATCHDOG_ALERT_COOLDOWN` (seconds, default `300`), or route to a dedicated chat with `WATCHDOG_ALERT_CHAT_ID`. The same `lib/notify.sh` also powers **`second_brain-monitor.sh`** — a systemd timer that watches the MCP servers and workers (`systemctl is-active` + an HTTP `/mcp` probe that catches *wedged-but-alive*, + restart-loop detection) and alerts on the same channel; point `MONITOR_AGENT` at the agent whose bot relays ops alerts.
 
 ---
 
@@ -459,7 +460,9 @@ bash install.sh --test-only
 | `CLAUDE_SDK_CHILD` | environment | `=1` → hooks exit immediately (anti-recursion for the Agent SDK) |
 | `WATCHDOG_TG_ALERTS` | `watchdog.sh` env | `=1` (default) → Telegram alerts to the Operator on restart/lost/stuck/orphan events; `0` disables |
 | `WATCHDOG_ALERT_COOLDOWN` | `watchdog.sh` env | per-message throttle window in seconds (default `300`) so flapping doesn't spam |
-| `WATCHDOG_ALERT_CHAT_ID` | `watchdog.sh` env | optional dedicated alert chat; defaults to the Operator chat from `channel.env` |
+| `WATCHDOG_ALERT_CHAT_ID` | `watchdog.sh` / `second_brain-monitor.sh` env | optional dedicated alert chat; defaults to the Operator chat from `channel.env` |
+| `MONITOR_AGENT` | `second_brain-monitor.sh` env | the agent whose bot relays backend alerts (defaults to the first roster agent) |
+| `MONITOR_COMPONENTS` | `second_brain-monitor.sh` env | space-separated `key\|unit\|port` specs to watch (default = the 5 units install enables; add `task\|second_brain-task-mcp\|8769` if enabled) |
 
 > [!WARNING]
 > Secrets live in `~/.claude-lab/<agent>/.claude/secrets/` with `chmod 600` and are **never hardcoded** in scripts; `start-agent.sh` fails fast if a secret is missing/unreadable.

@@ -69,6 +69,13 @@ else
   bad "notify.sh: юнит-тест провален (orchestration/lib/notify.test.sh)"
 fi
 
+echo "── 6. Мониторинг бэкенда (second_brain-monitor.sh) ──"
+if bash orchestration/second_brain-monitor.test.sh >/dev/null 2>&1; then
+  ok "second_brain-monitor.sh: переходы down/recovery + проба порта — юнит-тест зелёный"
+else
+  bad "second_brain-monitor.sh: юнит-тест провален (orchestration/second_brain-monitor.test.sh)"
+fi
+
 echo
 if [ "$fail" -eq 0 ]; then
   printf "${G}✅ self-test пройден (%d проверок).${N}\n" "$pass"; exit 0

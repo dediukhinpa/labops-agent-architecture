@@ -200,11 +200,12 @@ flowchart LR
 | упавший watchdog | `systemd` | `Restart=on-failure` + `RestartSec=15` |
 | осиротевший bun (claude умер, bun на PID 1) | `watchdog.sh` / `start-agent.sh` | `pkill -9` по пути агента |
 | сервисы second_brain | `systemd` | отдельные службы `second_brain-*.service` |
+| MCP-сервер / воркер завис или в crash-loop | `second_brain-monitor.sh` (systemd-таймер, ~60 с) | `systemctl is-active` + дельта рестартов + HTTP-проба `/mcp` (ловит *жив, но завис*) → Telegram-алерт на переходе down/up |
 
 </details>
 
 > [!NOTE]
-> **Алерты оператору.** На каждое из этих событий watchdog ещё и пишет оператору в Telegram (через бота агента, `tg-send.sh` → `lib/notify.sh`): перезапуск сессии **с причиной**, потерянный/неотрисованный промпт, застрявший неотправленный промпт и подбор осиротевшего канал-сервера. Алерты best-effort (упавшая отправка никогда не ломает watchdog) и троттлятся по каждому сообщению, поэтому флаппинг не спамит. Включается через `WATCHDOG_TG_ALERTS` (по умолчанию `1`), окно троттлинга — `WATCHDOG_ALERT_COOLDOWN` (секунды, по умолчанию `300`), отдельный чат — `WATCHDOG_ALERT_CHAT_ID`.
+> **Алерты оператору.** На каждое из этих событий watchdog ещё и пишет оператору в Telegram (через бота агента, `tg-send.sh` → `lib/notify.sh`): перезапуск сессии **с причиной**, потерянный/неотрисованный промпт, застрявший неотправленный промпт и подбор осиротевшего канал-сервера. Алерты best-effort (упавшая отправка никогда не ломает watchdog) и троттлятся по каждому сообщению, поэтому флаппинг не спамит. Включается через `WATCHDOG_TG_ALERTS` (по умолчанию `1`), окно троттлинга — `WATCHDOG_ALERT_COOLDOWN` (секунды, по умолчанию `300`), отдельный чат — `WATCHDOG_ALERT_CHAT_ID`. Тот же `lib/notify.sh` питает и **`second_brain-monitor.sh`** — systemd-таймер, который следит за MCP-серверами и воркерами (`systemctl is-active` + HTTP-проба `/mcp`, ловящая *жив, но завис*, + детект crash-loop) и алертит на тот же канал; укажи `MONITOR_AGENT` — агента, чей бот рассылает ops-алерты.
 
 ---
 
@@ -459,7 +460,9 @@ bash install.sh --test-only
 | `CLAUDE_SDK_CHILD` | окружение | `=1` → хуки выходят сразу (anti-recursion для Agent SDK) |
 | `WATCHDOG_TG_ALERTS` | env `watchdog.sh` | `=1` (по умолчанию) → алерты оператору в Telegram при рестарте/потере/застревании/осиротении; `0` выключает |
 | `WATCHDOG_ALERT_COOLDOWN` | env `watchdog.sh` | окно троттлинга по сообщению, секунды (по умолчанию `300`) — чтобы флаппинг не спамил |
-| `WATCHDOG_ALERT_CHAT_ID` | env `watchdog.sh` | отдельный чат для алертов; по умолчанию — чат оператора из `channel.env` |
+| `WATCHDOG_ALERT_CHAT_ID` | env `watchdog.sh` / `second_brain-monitor.sh` | отдельный чат для алертов; по умолчанию — чат оператора из `channel.env` |
+| `MONITOR_AGENT` | env `second_brain-monitor.sh` | агент, чей бот рассылает backend-алерты (по умолчанию — первый агент из ростера) |
+| `MONITOR_COMPONENTS` | env `second_brain-monitor.sh` | список `key\|unit\|port` через пробел (по умолчанию 5 юнитов, что включает install; добавь `task\|second_brain-task-mcp\|8769`, если включён) |
 
 > [!WARNING]
 > Секреты лежат в `~/.claude-lab/<agent>/.claude/secrets/` с `chmod 600` и **никогда не хардкодятся** в скриптах; `start-agent.sh` падает быстро, если секрет отсутствует/нечитаем.
