@@ -203,6 +203,9 @@ Mode (B) fires **only** on a non-empty input field — otherwise a clean idle pr
 
 </details>
 
+> [!NOTE]
+> **Operator alerts.** On each of these events the watchdog also pings the Operator in Telegram (via the agent's own bot, `tg-send.sh` → `lib/notify.sh`): a session restart **with its cause**, a lost/unrendered prompt, an unsubmitted ("stuck") prompt, and a reaped orphaned channel server. Alerts are best-effort (a failed send never disrupts the watchdog) and throttled per-message, so flapping doesn't spam. Toggle with `WATCHDOG_TG_ALERTS` (default `1`), tune `WATCHDOG_ALERT_COOLDOWN` (seconds, default `300`), or route to a dedicated chat with `WATCHDOG_ALERT_CHAT_ID`.
+
 ---
 
 ## Agent memory layers
@@ -454,6 +457,9 @@ bash install.sh --test-only
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | `settings.json` | auto-compaction window (400000) |
 | `KEEP_SNAPSHOTS` | `precompact-hook.sh` | how many pre-compact snapshots to keep (10) |
 | `CLAUDE_SDK_CHILD` | environment | `=1` → hooks exit immediately (anti-recursion for the Agent SDK) |
+| `WATCHDOG_TG_ALERTS` | `watchdog.sh` env | `=1` (default) → Telegram alerts to the Operator on restart/lost/stuck/orphan events; `0` disables |
+| `WATCHDOG_ALERT_COOLDOWN` | `watchdog.sh` env | per-message throttle window in seconds (default `300`) so flapping doesn't spam |
+| `WATCHDOG_ALERT_CHAT_ID` | `watchdog.sh` env | optional dedicated alert chat; defaults to the Operator chat from `channel.env` |
 
 > [!WARNING]
 > Secrets live in `~/.claude-lab/<agent>/.claude/secrets/` with `chmod 600` and are **never hardcoded** in scripts; `start-agent.sh` fails fast if a secret is missing/unreadable.

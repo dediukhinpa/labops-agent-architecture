@@ -9,6 +9,11 @@ SESSION="labops-$AGENT"
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 START_SCRIPT="$SCRIPT_DIR/start-agent.sh"
 
+# Best-effort Telegram alerts to the Operator on failures/restarts. Opt-in via
+# WATCHDOG_TG_ALERTS (default 1); never fatal; throttled. See lib/notify.sh.
+# shellcheck source=lib/notify.sh
+source "$SCRIPT_DIR/lib/notify.sh"
+
 log() { echo "[watchdog/$AGENT] $(date -u '+%H:%M:%S') $*"; }
 
 # Initial start — but DON'T disrupt an already-running agent. This lets the
@@ -47,7 +52,9 @@ NUDGE_STAGE=0
 
 restart_session() {
   log "restarting ($1)"
+  notify_op "$AGENT" "⚠️ перезапуск tmux-сессии — причина: $1"
   "$START_SCRIPT" "$AGENT"
+  notify_op "$AGENT" "✅ сессия снова в строю (после: $1)"
   PREV_TAIL=""; FROZEN_COUNT=0; NUDGE_STAGE=0
 }
 
@@ -62,6 +69,7 @@ while true; do
     if [ "$(awk '{print $4}' "/proc/$p/stat" 2>/dev/null)" = "1" ]; then
       log "reaping orphaned channel-bun pid=$p (ppid=1, parent claude died)"
       kill -9 "$p" 2>/dev/null || true
+      notify_op "$AGENT" "♻️ подобрал осиротевший channel-сервер (pid=$p): родительский claude умер"
     fi
   done
 
@@ -117,6 +125,7 @@ while true; do
   # Non-empty input that won't submit → escalate commit attempts (~30s apart).
   case "$NUDGE_STAGE" in
     0) log "stuck input detected — Enter"
+       notify_op "$AGENT" "✉️ в поле ввода застрял неотправленный промпт — пробую дослать (Enter)"
        tmux send-keys -t "$SESSION" Enter 2>/dev/null || true
        NUDGE_STAGE=1 ;;
     1) log "stuck input persists — Escape then Enter (bracketed-paste commit)"

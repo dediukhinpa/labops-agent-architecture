@@ -62,6 +62,13 @@ else
   bad "нет шага подключения модели — headless-агент не достучится до модели"
 fi
 
+echo "── 5. Watchdog-алерты оператору (lib/notify.sh) ──"
+if bash orchestration/lib/notify.test.sh >/dev/null 2>&1; then
+  ok "notify.sh: opt-in / троттлинг / non-fatal — юнит-тест зелёный"
+else
+  bad "notify.sh: юнит-тест провален (orchestration/lib/notify.test.sh)"
+fi
+
 echo
 if [ "$fail" -eq 0 ]; then
   printf "${G}✅ self-test пройден (%d проверок).${N}\n" "$pass"; exit 0

@@ -203,6 +203,9 @@ flowchart LR
 
 </details>
 
+> [!NOTE]
+> **Алерты оператору.** На каждое из этих событий watchdog ещё и пишет оператору в Telegram (через бота агента, `tg-send.sh` → `lib/notify.sh`): перезапуск сессии **с причиной**, потерянный/неотрисованный промпт, застрявший неотправленный промпт и подбор осиротевшего канал-сервера. Алерты best-effort (упавшая отправка никогда не ломает watchdog) и троттлятся по каждому сообщению, поэтому флаппинг не спамит. Включается через `WATCHDOG_TG_ALERTS` (по умолчанию `1`), окно троттлинга — `WATCHDOG_ALERT_COOLDOWN` (секунды, по умолчанию `300`), отдельный чат — `WATCHDOG_ALERT_CHAT_ID`.
+
 ---
 
 ## Слои памяти агента
@@ -454,6 +457,9 @@ bash install.sh --test-only
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | `settings.json` | окно авто-компакции (400000) |
 | `KEEP_SNAPSHOTS` | `precompact-hook.sh` | сколько pre-compact снапшотов держать (10) |
 | `CLAUDE_SDK_CHILD` | окружение | `=1` → хуки выходят сразу (anti-recursion для Agent SDK) |
+| `WATCHDOG_TG_ALERTS` | env `watchdog.sh` | `=1` (по умолчанию) → алерты оператору в Telegram при рестарте/потере/застревании/осиротении; `0` выключает |
+| `WATCHDOG_ALERT_COOLDOWN` | env `watchdog.sh` | окно троттлинга по сообщению, секунды (по умолчанию `300`) — чтобы флаппинг не спамил |
+| `WATCHDOG_ALERT_CHAT_ID` | env `watchdog.sh` | отдельный чат для алертов; по умолчанию — чат оператора из `channel.env` |
 
 > [!WARNING]
 > Секреты лежат в `~/.claude-lab/<agent>/.claude/secrets/` с `chmod 600` и **никогда не хардкодятся** в скриптах; `start-agent.sh` падает быстро, если секрет отсутствует/нечитаем.
