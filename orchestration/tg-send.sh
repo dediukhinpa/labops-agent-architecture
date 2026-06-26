@@ -9,7 +9,13 @@ set -euo pipefail
 source "$(dirname "$0")/lib/agents.sh"
 
 AGENT="${1:?agent required}"
-CHAT_ID="100000003"  # Оператор (Operator)
+
+# Куда слать: chat_id оператора. Берём из channel.env (первый из allowed-id),
+# либо переопределяем через TG_CHAT_ID. Ничего не хардкодим.
+CHAT_ID="${TG_CHAT_ID:-}"
+[ -n "$CHAT_ID" ] || CHAT_ID="$(agent_channel_var "$AGENT" TELEGRAM_ALLOWED_CHAT_IDS 2>/dev/null | cut -d, -f1)"
+[ -n "$CHAT_ID" ] || CHAT_ID="$(agent_channel_var "$AGENT" TELEGRAM_ALLOWED_USER_IDS 2>/dev/null | cut -d, -f1)"
+[ -n "$CHAT_ID" ] || { echo "no operator chat_id for $AGENT (set TG_CHAT_ID or TELEGRAM_ALLOWED_CHAT_IDS in channel.env)" >&2; exit 2; }
 
 TOK="$(agent_bot_token "$AGENT")" || { echo "Unknown agent: $AGENT" >&2; exit 2; }
 

@@ -43,40 +43,52 @@ list_agents() {
   done
 }
 
-# agent_bot_token <agent> — print the TELEGRAM_BOT_TOKEN for the given agent.
+# agent_channel_env <agent> — print the path to the agent's channel.env.
 #
 # Reads the first existing of:
 #   /etc/labops-plugin/<agent>/channel.env
 #   $CLAUDE_LAB/shared/state/<agent>/telegram/channel.env
-# Returns 1 and prints to stderr if no token can be found.
+# Returns 1 (no output) if none exists.
+agent_channel_env() {
+  local agent="$1" f
+  [ -n "$agent" ] || { echo "agent_channel_env: agent name required" >&2; return 1; }
+  for f in \
+    "/etc/labops-plugin/$agent/channel.env" \
+    "$CLAUDE_LAB/shared/state/$agent/telegram/channel.env"; do
+    [ -f "$f" ] && { printf '%s\n' "$f"; return 0; }
+  done
+  return 1
+}
+
+# agent_channel_var <agent> <VAR> — print the value of VAR from the agent's
+# channel.env (quotes/whitespace stripped). Nothing is ever hardcoded here —
+# all per-agent config and secrets live in that file (chmod 600, not in git).
+# Returns 1 if the file or the variable is missing.
+agent_channel_var() {
+  local agent="$1" var="$2" f line val
+  [ -n "$var" ] || { echo "agent_channel_var: VAR name required" >&2; return 1; }
+  f="$(agent_channel_env "$agent")" || return 1
+  line="$(grep -E "^[[:space:]]*${var}[[:space:]]*=" "$f" | head -1)"
+  [ -n "$line" ] || return 1
+  val="${line#*=}"
+  val="${val#"${val%%[![:space:]]*}"}"
+  val="${val%"${val##*[![:space:]]}"}"
+  val="${val#\"}"; val="${val%\"}"
+  val="${val#\'}"; val="${val%\'}"
+  [ -n "$val" ] || return 1
+  printf '%s\n' "$val"
+}
+
+# agent_bot_token <agent> — print that agent's TELEGRAM_BOT_TOKEN (from channel.env).
 agent_bot_token() {
-  local agent="$1"
+  local agent="$1" token
   if [ -z "$agent" ]; then
     echo "agent_bot_token: agent name required" >&2
     return 1
   fi
-
-  local f token
-  for f in \
-    "/etc/labops-plugin/$agent/channel.env" \
-    "$CLAUDE_LAB/shared/state/$agent/telegram/channel.env"; do
-    [ -f "$f" ] || continue
-    token="$(grep -E '^[[:space:]]*TELEGRAM_BOT_TOKEN[[:space:]]*=' "$f" | head -1)"
-    [ -n "$token" ] || continue
-    # Strip everything up to and including the first '='.
-    token="${token#*=}"
-    # Trim surrounding whitespace.
-    token="${token#"${token%%[![:space:]]*}"}"
-    token="${token%"${token##*[![:space:]]}"}"
-    # Strip optional surrounding single or double quotes.
-    token="${token#\"}"; token="${token%\"}"
-    token="${token#\'}"; token="${token%\'}"
-    if [ -n "$token" ]; then
-      printf '%s\n' "$token"
-      return 0
-    fi
-  done
-
+  token="$(agent_channel_var "$agent" TELEGRAM_BOT_TOKEN)" && [ -n "$token" ] && {
+    printf '%s\n' "$token"; return 0;
+  }
   echo "agent_bot_token: no TELEGRAM_BOT_TOKEN found for agent '$agent'" >&2
   return 1
 }

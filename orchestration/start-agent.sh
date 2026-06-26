@@ -34,8 +34,9 @@ read_secret() {
 TELEGRAM_BOT_TOKEN="$(read_secret telegram-bot-token)"
 TELEGRAM_WEBHOOK_TOKEN="$(read_secret telegram-webhook-token)"
 
-TELEGRAM_STATE_DIR="/home/agent/.claude/channels/labops-$AGENT"
-TELEGRAM_ALLOWED_USER_IDS="100000003"
+TELEGRAM_STATE_DIR="${TELEGRAM_STATE_DIR:-$CLAUDE_LAB/shared/state/$AGENT/telegram}"
+# Allowlist приходит из channel.env (никогда не хардкодится).
+TELEGRAM_ALLOWED_USER_IDS="$(agent_channel_var "$AGENT" TELEGRAM_ALLOWED_USER_IDS 2>/dev/null || true)"
 
 # Load Groq API key for voice transcription
 GROQ_API_KEY=$(cat "/home/agent/.claude-lab/$AGENT/.claude/secrets/groq-api-key" 2>/dev/null || echo "")

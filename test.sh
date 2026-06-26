@@ -37,7 +37,7 @@ if grep -rnE '[0-9]{8,}:AA[A-Za-z0-9_-]{20,}' . --include='*.sh' --include='*.md
 else
   ok "бот-токенов нет"
 fi
-if grep -rnE '100000001|100000002|100\.97\.43\.' . --include='*.sh' --include='*.md' --include='*.py' --exclude=test.sh 2>/dev/null | grep -q .; then
+if grep -rnE '100000001|100000002|100000003|100\.97\.43\.' . --include='*.sh' --include='*.md' --include='*.py' --exclude=test.sh 2>/dev/null | grep -q .; then
   bad "найдены реальные user/chat ID или Tailscale-IP!"
 else
   ok "реальных ID/Tailscale нет"
