@@ -43,6 +43,27 @@ else
   ok "реальных ID/Tailscale нет"
 fi
 
+echo "── 4. Модель и авторизация Claude Code учтены ──"
+# 4a. settings.json реально задаёт модель (не только описательные доки)
+if grep -q '"model"' agent-template/templates/settings.json.template; then
+  ok "settings.json.template задаёт \"model\""
+else
+  bad "settings.json.template не задаёт \"model\" — агент стартует на дефолтной модели CLI"
+fi
+# 4b. create-agent flow спрашивает и пробрасывает PRIMARY_MODEL
+if grep -qE '^ask +PRIMARY_MODEL' skills/create-agent/new-agent.sh \
+   && grep -qE 'PRIMARY_MODEL="\$PRIMARY_MODEL"' skills/create-agent/new-agent.sh; then
+  ok "new-agent.sh спрашивает и пробрасывает PRIMARY_MODEL"
+else
+  bad "new-agent.sh не спрашивает/не пробрасывает PRIMARY_MODEL в скаффолдер"
+fi
+# 4c. учтён шаг подключения модели (subscription login — claude setup-token)
+if grep -rqE 'setup-token' install.sh skills/create-agent/new-agent.sh; then
+  ok "учтён шаг авторизации Claude Code (setup-token)"
+else
+  bad "нет шага подключения модели — headless-агент не достучится до модели"
+fi
+
 echo
 if [ "$fail" -eq 0 ]; then
   printf "${G}✅ self-test пройден (%d проверок).${N}\n" "$pass"; exit 0

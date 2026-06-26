@@ -43,6 +43,15 @@ say "0. Проверка зависимостей"
 [ -d "$AGENT_TEMPLATE" ] || die "agent-template не найден: $AGENT_TEMPLATE"
 command -v curl >/dev/null || die "нужен curl"
 command -v jq   >/dev/null || warn "jq не найден — smoke-проверки будут грубее"
+# Claude Code должен быть авторизован к модели (подписка Max/Pro).
+# Без этого агент стартует под systemd, но не достучится до модели.
+if command -v claude >/dev/null 2>&1; then
+  ok "claude в PATH"
+  echo "    Если агент ещё не авторизован — выполните разово (под пользователем агента):"
+  echo "      claude setup-token        # вход по подписке Max/Pro (первая сторона, без third-party)"
+else
+  warn "claude не в PATH — поставьте: npm i -g @anthropic-ai/claude-code, затем 'claude setup-token'"
+fi
 
 TG_PLUGIN_DIR="${TG_PLUGIN_DIR:-}"
 for cand in "$TG_PLUGIN_DIR" "$HOME/labops-tg-plugin" "$LAB_DIR/shared/plugins/labops-tg-plugin" "$LAB_DIR/shared/plugins/labops-channel"; do
@@ -57,6 +66,7 @@ ask AGENT_ROLE  "Роль агента" "Разработчик"
 ask AGENT_ROLE_DESCRIPTION "Описание роли одной фразой" "Автономный разработчик: пишет код, ревьюит архитектуру, гоняет тесты, помогает ставить других агентов."
 AGENT_ID=$(echo "$AGENT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
 [[ "$AGENT_ID" =~ ^[a-z0-9][a-z0-9-]{0,30}$ ]] || die "имя: только латиница/цифры/дефис, ≤31"
+ask PRIMARY_MODEL    "Модель Anthropic — opus / sonnet / haiku (Developer рекоменд.: opus = Opus 4.8)" "opus"
 ask LANGUAGE         "Язык ответов" "Russian"
 ask OPERATOR_ADDRESS "Как обращаться к вам" "Boss"
 ask MCP_HOST         "URL второго мозга (http://<vps-ip>:8767 или https://...)" "http://127.0.0.1:8767"
@@ -81,6 +91,7 @@ fi
 say "3. Скаффолд воркспейса"
 NONINTERACTIVE=1 AGENT_NAME="$AGENT_NAME" AGENT_ROLE="$AGENT_ROLE" \
   AGENT_ROLE_DESCRIPTION="$AGENT_ROLE_DESCRIPTION" LANGUAGE="$LANGUAGE" \
+  PRIMARY_MODEL="$PRIMARY_MODEL" \
   OPERATOR_ADDRESS="$OPERATOR_ADDRESS" MCP_HOST="$MCP_HOST" \
   AGENT_BEARER="$AGENT_BEARER" AGENT_SCOPES="$AGENT_SCOPES" \
   bash "$AGENT_TEMPLATE/install.sh"
@@ -183,6 +194,16 @@ fi
 # 7c. сессия поднимается
 if [ "${AUTOSTART:-1}" = "1" ] && command -v systemctl >/dev/null; then
   systemctl is-active --quiet "claude-agent-$AGENT_ID.service" && ok "сервис активен" || { warn "сервис не active"; FAIL=1; }
+fi
+# 7d. модель подключена: Claude Code авторизован и реально отвечает выбранной моделью
+if command -v claude >/dev/null 2>&1; then
+  if timeout 90 claude -p "ping" --model "${PRIMARY_MODEL:-opus}" >/dev/null 2>&1; then
+    ok "модель отвечает (Claude Code авторизован, model=${PRIMARY_MODEL:-opus})"
+  else
+    warn "модель не ответила — авторизуйте Claude Code: 'claude setup-token' (Max/Pro), затем перезапустите сервис"; FAIL=1
+  fi
+else
+  warn "claude не в PATH — модель не проверить"; FAIL=1
 fi
 
 echo

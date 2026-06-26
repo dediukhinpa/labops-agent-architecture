@@ -2,7 +2,7 @@
 
 ## Models
 
-- **Primary:** {{PRIMARY_MODEL}} (e.g. Claude Opus 4.6)
+- **Primary:** {{PRIMARY_MODEL}} (e.g. Claude Opus 4.8)
 - **Subagents:** Native Claude Code Agent tool (inherit parent model or override in agents/*.md)
 - **Research:** {{RESEARCH_MODEL}} (e.g. Perplexity Sonar -- web search only, no code)
 
