@@ -67,7 +67,7 @@ In the labops system the **backend is Agent-Native**: memory, swarm, and channel
 - **Honest install.** If something is missing, the installer plainly lists what is **not** configured instead of showing a false green.
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','clusterBkg':'transparent','clusterBorder':'#B794F4','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart LR
   Operator["Operator"] -->|install.sh| Dev["Developer agent"]
   Dev -->|create-agent skill| A2["&lt;agent-2&gt; agent"]
@@ -136,7 +136,7 @@ If something is missing, the install honestly lists what is **not** configured (
 Nobody runs agents "by hand" — **systemd** holds everything, and the agent brings itself back up after any crash. The safety net is **nested**: systemd holds the watchdog → the watchdog holds tmux+claude → claude holds the channel server (bun). A failure at any level is healed by the level above.
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','clusterBkg':'transparent','clusterBorder':'#B794F4','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart LR
   subgraph boot["Boot · supervision"]
     direction TB
@@ -210,7 +210,7 @@ Mode (B) fires **only** on a non-empty input field — otherwise a clean idle pr
 An agent has four memory layers: the first three are local files in its workspace (`@core/…`, partly always in context), the fourth is the shared brain `labops-second-brain` over MCP. Truth hierarchy: **live check (exec/grep) → second_brain (shared brain) → git history → local memory**. When memory contradicts the check, the check wins.
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','clusterBkg':'transparent','clusterBorder':'#B794F4','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart LR
   subgraph local["Agent local memory (workspace files)"]
     L1["L1 IDENTITY<br/>CLAUDE.md · rules.md · USER.md<br/>(always in context)"]
@@ -285,7 +285,7 @@ Important: `mcp.json.template` connects the agent to **only** second_brain (3 se
 When the Operator needs a new agent, they ask the Developer agent for it in Telegram. It runs the `create-agent` skill, which drives the whole deployment — from the role conversation to a passing smoke test — without requiring manual steps from the Operator.
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','clusterBkg':'transparent','clusterBorder':'#B794F4','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart LR
   subgraph c1["Define · scaffold"]
     direction TB
