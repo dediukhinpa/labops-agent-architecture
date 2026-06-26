@@ -31,6 +31,7 @@ This is one of the **three** repositories of the labops system. It owns how an a
 - **[`labops-tg-plugin`](https://github.com/dediukhinpa/labops-tg-plugin)** — the Telegram channel: per-agent bot, voice, reactions, webhook.
 - **[`labops-second-brain`](https://github.com/dediukhinpa/labops-second-brain)** — shared memory: MCP `memory:8767` / `recall:8768` / `swarm:8766` / `task:8769`. The agent receives a Bearer token and reads/writes through MCP.
 
+> [!IMPORTANT]
 > **Platform:** Linux + systemd + tmux. On macOS / without systemd you can run an agent manually in tmux, but not as a service (no autostart / self-healing).
 
 ---
@@ -65,6 +66,7 @@ In the labops system the **backend is Agent-Native**: memory, swarm, and channel
 - **Honest install.** If something is missing, the installer plainly lists what is **not** configured instead of showing a false green.
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart LR
   Operator["Operator"] -->|install.sh| Dev["Developer agent"]
   Dev -->|create-agent skill| A2["&lt;agent-2&gt; agent"]
@@ -77,6 +79,13 @@ flowchart LR
   Dev -.->|channel + token| deps
   A2 -.-> deps
   A3 -.-> deps
+  classDef brand fill:#8B5CF6,stroke:#6D28D9,color:#ffffff,font-weight:bold
+  classDef ext fill:#CCFBF1,stroke:#0D9488,color:#0F766E
+  classDef store fill:#FEF3C7,stroke:#D97706,color:#92400E
+  classDef sys fill:#E2E8F0,stroke:#334155,color:#1E293B
+  linkStyle default stroke:#8B5CF6,stroke-width:1.5px
+  class Dev brand
+  class TG,SB ext
 ```
 
 Responsibility boundaries of the three repositories:
@@ -97,6 +106,9 @@ Everything else in this README can be read as needed — for the first agent thi
 2. **Install the engine and sign in:** `npm i -g @anthropic-ai/claude-code && claude setup-token`.
 3. **Create the first agent:** `bash install.sh` — it asks for name/model/Telegram bot, deploys everything, and runs a smoke test. For the Developer the default model is `opus` (Opus 4.8).
 4. **Telegram bot up front:** @BotFather → `/newbot` → token; get your `user_id` from @userinfobot (the install step will walk you through it).
+
+> [!TIP]
+> For the Developer the default model is `opus` (Opus 4.8). You install only the first agent — then the swarm grows itself: the Developer spawns the rest via the `create-agent` skill.
 
 ```bash
 # 1. Bring up the sibling repos first (brain + channel)
@@ -123,6 +135,7 @@ If something is missing, the install honestly lists what is **not** configured (
 Nobody runs agents "by hand" — **systemd** holds everything, and the agent brings itself back up after any crash. The safety net is **nested**: systemd holds the watchdog → the watchdog holds tmux+claude → claude holds the channel server (bun). A failure at any level is healed by the level above.
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart TD
   SD["systemd: claude-agent-&lt;agent&gt;.service<br/>Restart=on-failure, RestartSec=15"]
   WD["watchdog.sh &lt;agent&gt;<br/>eternal supervisor (daemon)"]
@@ -139,6 +152,14 @@ flowchart TD
   CC -->|spawn child, stdio MCP| BUN
   CC -->|HTTP + Bearer| SB
   BUN <-->|getUpdates / sendMessage| TG["Telegram (Operator)"]
+  classDef brand fill:#8B5CF6,stroke:#6D28D9,color:#ffffff,font-weight:bold
+  classDef ext fill:#CCFBF1,stroke:#0D9488,color:#0F766E
+  classDef store fill:#FEF3C7,stroke:#D97706,color:#92400E
+  classDef sys fill:#E2E8F0,stroke:#334155,color:#1E293B
+  linkStyle default stroke:#8B5CF6,stroke-width:1.5px
+  class CC brand
+  class SD,WD,SA,TM sys
+  class BUN,SB,TG ext
 ```
 
 **Startup chain:**
@@ -150,7 +171,8 @@ flowchart TD
 
 ### Liveness model (self-healing) in `watchdog.sh`
 
-The watchdog grabs the tmux pane "tail" every ~30 s and classifies the state. The only reliable "a turn is in progress" marker is the **`esc to interrupt`** footer: Claude Code shows it the whole time a turn runs and removes it the moment the turn finishes. The timer line (`Cooked for Ns`) must not be used — it stays on screen after the turn and, in the past, caused false restarts of an idle agent.
+> [!NOTE]
+> The watchdog grabs the tmux pane "tail" every ~30 s and classifies the state. The only reliable "a turn is in progress" marker is the **`esc to interrupt`** footer: Claude Code shows it the whole time a turn runs and removes it the moment the turn finishes. The timer line (`Cooked for Ns`) must not be used — it stays on screen after the turn and, in the past, caused false restarts of an idle agent.
 
 Two "silent" failure modes, both invisible to a naive prompt check (a frozen TUI still draws `❯`):
 
@@ -182,6 +204,7 @@ Mode (B) fires **only** on a non-empty input field — otherwise a clean idle pr
 An agent has four memory layers: the first three are local files in its workspace (`@core/…`, partly always in context), the fourth is the shared brain `labops-second-brain` over MCP. Truth hierarchy: **live check (exec/grep) → second_brain (shared brain) → git history → local memory**. When memory contradicts the check, the check wins.
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart TB
   subgraph local["Agent local memory (workspace files)"]
     L1["L1 IDENTITY<br/>CLAUDE.md · rules.md · USER.md<br/>(always in context)"]
@@ -190,6 +213,13 @@ flowchart TB
   end
   L4["L4 SHARED BRAIN<br/>labops-second-brain · recall/memory/swarm over MCP"]
   L1 --> L2 --> L3 --> L4
+  classDef brand fill:#8B5CF6,stroke:#6D28D9,color:#ffffff,font-weight:bold
+  classDef ext fill:#CCFBF1,stroke:#0D9488,color:#0F766E
+  classDef store fill:#FEF3C7,stroke:#D97706,color:#92400E
+  classDef sys fill:#E2E8F0,stroke:#334155,color:#1E293B
+  linkStyle default stroke:#8B5CF6,stroke-width:1.5px
+  class L4 brand
+  class L1,L2,L3 sys
 ```
 
 | Layer | Files / source | In context | Who edits |
@@ -249,6 +279,7 @@ Important: `mcp.json.template` connects the agent to **only** second_brain (3 se
 When the Operator needs a new agent, they ask the Developer agent for it in Telegram. It runs the `create-agent` skill, which drives the whole deployment — from the role conversation to a passing smoke test — without requiring manual steps from the Operator.
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
 flowchart TD
   S1["1. Conversation: role and name<br/>(what the agent does, what it's called)"]
   S2["2. Identity: walk through CLAUDE.md / rules.md<br/>(character, zones, principles)"]
@@ -259,6 +290,14 @@ flowchart TD
   S7["7. Autostart<br/>systemd unit + watchdog"]
   S8["8. Smoke test<br/>channel, recall, swarm, reactions"]
   S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
+  classDef brand fill:#8B5CF6,stroke:#6D28D9,color:#ffffff,font-weight:bold
+  classDef ext fill:#CCFBF1,stroke:#0D9488,color:#0F766E
+  classDef store fill:#FEF3C7,stroke:#D97706,color:#92400E
+  classDef sys fill:#E2E8F0,stroke:#334155,color:#1E293B
+  linkStyle default stroke:#8B5CF6,stroke-width:1.5px
+  class S1 brand
+  class S4,S5,S6 ext
+  class S7 sys
 ```
 
 | Step | What it does | Artifact |
@@ -342,6 +381,9 @@ The root `install.sh` installs the **first agent — Developer** turnkey, end-to
 - an installed **`labops-tg-plugin`** — the channel through which the agent talks on Telegram;
 - **Claude Code (the engine) + a connected model** — `npm i -g @anthropic-ai/claude-code`, then a **one-time subscription sign-in**: `claude setup-token` (Max/Pro, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); the install dialog asks for it and recommends **`opus` (Opus 4.8)** for the Developer. Without sign-in the agent starts under systemd but can't reach the model — the smoke test catches this (the "model responds" step).
 
+> [!IMPORTANT]
+> **Model & auth.** Sign in once with `claude setup-token` (Max/Pro subscription, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); `opus` (Opus 4.8) is recommended for the Developer. Without sign-in the agent starts but can't reach a model.
+
 ```bash
 # 1. Bring up the sibling repos first (brain + channel)
 #    see labops-second-brain/README and labops-tg-plugin/README
@@ -399,7 +441,8 @@ bash install.sh --test-only
 | `KEEP_SNAPSHOTS` | `precompact-hook.sh` | how many pre-compact snapshots to keep (10) |
 | `CLAUDE_SDK_CHILD` | environment | `=1` → hooks exit immediately (anti-recursion for the Agent SDK) |
 
-Secrets live in `~/.claude-lab/<agent>/.claude/secrets/` with `chmod 600` and are **never hardcoded** in scripts; `start-agent.sh` fails fast if a secret is missing/unreadable.
+> [!WARNING]
+> Secrets live in `~/.claude-lab/<agent>/.claude/secrets/` with `chmod 600` and are **never hardcoded** in scripts; `start-agent.sh` fails fast if a secret is missing/unreadable.
 
 </details>
 
