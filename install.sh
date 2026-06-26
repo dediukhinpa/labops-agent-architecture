@@ -43,6 +43,11 @@ else
   warn "Claude Code (claude) не в PATH — нужен для запуска агента: npm i -g @anthropic-ai/claude-code"
   warn "после установки авторизуйте модель разово: 'claude setup-token'"
 fi
+command -v tmux >/dev/null 2>&1 && ok "tmux найден" || die "нужен tmux (рантайм агента живёт в tmux-сессии): apt-get install tmux"
+if command -v systemctl >/dev/null 2>&1; then ok "systemd найден"; else
+  warn "systemd (systemctl) не найден — автозапуск недоступен (Linux+systemd обязателен для сервиса)."
+  warn "на macOS/без systemd агент можно запускать вручную, но не как службу."
+fi
 for c in curl jq python3; do command -v "$c" >/dev/null 2>&1 && ok "$c" || warn "$c не найден (часть шагов деградирует)"; done
 
 # мягкая проверка соседних репозиториев
