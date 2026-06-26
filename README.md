@@ -50,8 +50,9 @@ This is one of the **three** repositories of the labops system. It owns how an a
 10. [Configuration & environment](#configuration--environment)
 11. [Troubleshooting](#troubleshooting)
 12. [FAQ](#faq)
-13. [Part of labops](#part-of-labops)
-14. [License](#license)
+13. [Data & privacy](#data--privacy)
+14. [Part of labops](#part-of-labops)
+15. [License](#license)
 
 ---
 
@@ -136,18 +137,23 @@ Nobody runs agents "by hand" — **systemd** holds everything, and the agent bri
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
-flowchart TD
-  SD["systemd: claude-agent-&lt;agent&gt;.service<br/>Restart=on-failure, RestartSec=15"]
-  WD["watchdog.sh &lt;agent&gt;<br/>eternal supervisor (daemon)"]
-  SA["start-agent.sh &lt;agent&gt;<br/>injects env/secrets, creates the session"]
-  TM["tmux session labops-&lt;agent&gt;"]
-  CC["claude (Claude Code CLI)<br/>--dangerously-skip-permissions<br/>server:labops-channel"]
-  BUN["channel server (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
-  SB["second_brain MCP<br/>memory:8767 / recall:8768 / swarm:8766"]
-
-  SD -->|ExecStart| WD
-  WD -->|if no session / frozen| SA
-  SA -->|tmux new-session| TM
+flowchart LR
+  subgraph boot["Boot · supervision"]
+    direction TB
+    SD["systemd: claude-agent-&lt;agent&gt;.service<br/>Restart=on-failure, RestartSec=15"]
+    WD["watchdog.sh &lt;agent&gt;<br/>eternal supervisor (daemon)"]
+    SA["start-agent.sh &lt;agent&gt;<br/>injects env/secrets, creates the session"]
+    TM["tmux session labops-&lt;agent&gt;"]
+    SD -->|ExecStart| WD
+    WD -->|if no session / frozen| SA
+    SA -->|tmux new-session| TM
+  end
+  subgraph live["Live runtime"]
+    direction TB
+    CC["claude (Claude Code CLI)<br/>--dangerously-skip-permissions<br/>server:labops-channel"]
+    BUN["channel server (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
+    SB["second_brain MCP<br/>memory:8767 / recall:8768 / swarm:8766"]
+  end
   TM --> CC
   CC -->|spawn child, stdio MCP| BUN
   CC -->|HTTP + Bearer| SB
@@ -205,7 +211,7 @@ An agent has four memory layers: the first three are local files in its workspac
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
-flowchart TB
+flowchart LR
   subgraph local["Agent local memory (workspace files)"]
     L1["L1 IDENTITY<br/>CLAUDE.md · rules.md · USER.md<br/>(always in context)"]
     L2["L2 HOT<br/>hot/recent.md (24h) · hot/handoff.md<br/>(handoff placed by the boot hook)"]
@@ -280,16 +286,24 @@ When the Operator needs a new agent, they ask the Developer agent for it in Tele
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#EDE9FE','primaryTextColor':'#4C1D95','primaryBorderColor':'#8B5CF6','lineColor':'#8B5CF6','secondaryColor':'#F1F5F9','tertiaryColor':'#ffffff','fontFamily':'Helvetica,Arial,sans-serif'}}}%%
-flowchart TD
-  S1["1. Conversation: role and name<br/>(what the agent does, what it's called)"]
-  S2["2. Identity: walk through CLAUDE.md / rules.md<br/>(character, zones, principles)"]
-  S3["3. Scaffold the workspace<br/>agent-template → ~/.claude-lab/&lt;agent&gt;/.claude"]
-  S4["4. Telegram bot<br/>@BotFather → token → channel.env"]
-  S5["5. Voice<br/>groq-voice skill (GROQ_API_KEY)"]
-  S6["6. second_brain token<br/>Bearer + scopes from labops-second-brain"]
-  S7["7. Autostart<br/>systemd unit + watchdog"]
-  S8["8. Smoke test<br/>channel, recall, swarm, reactions"]
-  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
+flowchart LR
+  subgraph c1["Define · scaffold"]
+    direction TB
+    S1["1. Conversation: role and name<br/>(what the agent does, what it's called)"]
+    S2["2. Identity: walk through CLAUDE.md / rules.md<br/>(character, zones, principles)"]
+    S3["3. Scaffold the workspace<br/>agent-template → ~/.claude-lab/&lt;agent&gt;/.claude"]
+    S4["4. Telegram bot<br/>@BotFather → token → channel.env"]
+    S1 --> S2 --> S3 --> S4
+  end
+  subgraph c2["Provision · verify"]
+    direction TB
+    S5["5. Voice<br/>groq-voice skill (GROQ_API_KEY)"]
+    S6["6. second_brain token<br/>Bearer + scopes from labops-second-brain"]
+    S7["7. Autostart<br/>systemd unit + watchdog"]
+    S8["8. Smoke test<br/>channel, recall, swarm, reactions"]
+    S5 --> S6 --> S7 --> S8
+  end
+  S4 --> S5
   classDef brand fill:#8B5CF6,stroke:#6D28D9,color:#ffffff,font-weight:bold
   classDef ext fill:#CCFBF1,stroke:#0D9488,color:#0F766E
   classDef store fill:#FEF3C7,stroke:#D97706,color:#92400E
@@ -504,6 +518,24 @@ Secrets live in `~/.claude-lab/<agent>/.claude/secrets/` with `chmod 600` and ar
 Self-healing is nested: systemd holds the watchdog (`Restart=on-failure`, `RestartSec=15`), the watchdog detects a frozen/dead tmux pane and has `start-agent.sh` recreate the session, and an orphaned channel server (bun on PID 1) is reaped by path. `handoff.md` carries the latest events across a restart.
 
 </details>
+
+---
+
+## Data & privacy
+
+Self-hosted by design: agents run on the operator's own Linux server, the `second_brain` (Postgres + vault) is local, and there is no telemetry. The only outbound traffic goes to the AI / messaging providers the operator configures.
+
+| Endpoint | Purpose | When | Optional |
+|---|---|---|---|
+| `api.anthropic.com` (via the Claude Code engine) | LLM inference — the model the agent runs on | while the agent is active | no (core) |
+| `api.telegram.org` | chat I/O — receiving and sending messages | while running | no |
+| `api.groq.com` | voice transcription / synthesis | only on voice messages | yes (optional) |
+| `second_brain` (`localhost` MCP, Postgres + vault) | conversation memory & state | always | local — never leaves the host |
+
+> [!IMPORTANT]
+> Conversation memory and state live in the local `second_brain` (Postgres + vault) on the operator's host. The only data that leaves the machine is the prompt / response traffic to the configured AI providers — which is required for any LLM agent to function.
+
+Secrets live in `channel.env` / `.claude/secrets` (`chmod 600`) and are never committed.
 
 ---
 
