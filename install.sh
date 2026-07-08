@@ -88,13 +88,57 @@ if command -v systemctl >/dev/null 2>&1; then ok "systemd найден"; else
 fi
 command -v python3 >/dev/null 2>&1 && ok "python3" || warn "python3 не найден (часть шагов деградирует)"
 
-# мягкая проверка соседних репозиториев
-SB=""; for d in "${SECOND_BRAIN_DIR:-}" /opt/second_brain "$HOME/labops-second-brain"; do
-  [ -n "$d" ] && [ -d "$d/services" ] && SB="$d" && break; done
-[ -n "$SB" ] && ok "labops-second-brain: $SB" || warn "labops-second-brain не найден — токен агента придётся ввести вручную (или поставьте репозиторий)"
-TG=""; for d in "${TG_PLUGIN_DIR:-}" "$HOME/labops-tg-plugin" "$LAB_DIR/shared/plugins/labops-tg-plugin"; do
-  [ -n "$d" ] && [ -d "$d/plugin" ] && TG="$d" && break; done
-[ -n "$TG" ] && ok "labops-tg-plugin: $TG" || warn "labops-tg-plugin не найден — Telegram-канал будет пропущен (поставьте репозиторий)"
+# ── Клонирование соседних репозиториев (если их ещё нет) ─────────
+# GITHUB_TOKEN нужен только для приватного labops-second-brain на чистой
+# машине без gh и без настроенного SSH-ключа. Токен передаётся через -c
+# http.extraHeader только для ЭТОГО вызова git — не пишется в .git/config
+# и не оседает на диске.
+clone_repo() {
+  local name="$1" url="$2" dest="$3"
+  if [ -d "$dest/.git" ]; then
+    ok "$name уже на месте: $dest"
+    return 0
+  fi
+  say "Клонирую $name → $dest"
+  local err_log; err_log="$(mktemp)"
+  if git clone --depth=1 "$url" "$dest" 2>"$err_log"; then
+    ok "$name склонирован"
+  elif [ -n "${GITHUB_TOKEN:-}" ]; then
+    warn "$name недоступен анонимно (приватный?) — пробую с GITHUB_TOKEN"
+    local auth_header
+    auth_header="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+    if git -c http.extraHeader="$auth_header" clone --depth=1 "$url" "$dest" 2>"$err_log"; then
+      ok "$name склонирован (по GITHUB_TOKEN)"
+    else
+      cat "$err_log" >&2
+      die "$name: клонирование не удалось даже с GITHUB_TOKEN — проверьте, что токен выпущен для аккаунта-владельца репозитория и имеет право Contents:Read на $name."
+    fi
+  else
+    cat "$err_log" >&2
+    die "$name недоступен анонимно (репозиторий приватный?) и GITHUB_TOKEN не задан.
+    На чистом сервере без gh/SSH экспортируйте токен и перезапустите:
+      GITHUB_TOKEN=ghp_xxx ./install.sh
+    Либо склонируйте вручную и перезапустите install.sh:
+      git clone $url $dest"
+  fi
+  rm -f "$err_log"
+}
+
+SB="${SECOND_BRAIN_DIR:-$HOME/labops-second-brain}"
+if [ "${SKIP_SECOND_BRAIN:-0}" != "1" ]; then
+  clone_repo "labops-second-brain" "https://github.com/dediukhinpa/labops-second-brain.git" "$SB"
+else
+  warn "labops-second-brain пропущен (SKIP_SECOND_BRAIN=1) — токен агента придётся ввести вручную"
+  SB=""
+fi
+
+TG="${TG_PLUGIN_DIR:-$HOME/labops-tg-plugin}"
+if [ "${SKIP_TG_PLUGIN:-0}" != "1" ]; then
+  clone_repo "labops-tg-plugin" "https://github.com/dediukhinpa/labops-tg-plugin.git" "$TG"
+else
+  warn "labops-tg-plugin пропущен (SKIP_TG_PLUGIN=1) — Telegram-канал будет пропущен"
+  TG=""
+fi
 
 # скрипты должны быть исполняемыми
 chmod +x "$REPO_DIR"/test.sh "$REPO_DIR"/orchestration/*.sh "$REPO_DIR"/skills/create-agent/*.sh \
