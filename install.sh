@@ -6,22 +6,24 @@
 # мозг + Telegram + голос + автостарт, со встроенным скиллом create-agent, которым
 # Developer дальше поднимает остальных агентов. В конце — self-test (gate).
 #
-# Ставит сам: tmux/git/curl/jq/unzip, Claude Code (нативно, без Node.js),
-# и клонирует+ставит соседние репозитории:
+# Ставит САМУ АРХИТЕКТУРУ: tmux/git/curl/jq/unzip, Claude Code (нативно, без
+# Node.js), и клонирует (но НЕ устанавливает) соседние репозитории:
 #   • labops-second-brain — общий мозг (для токена агента)
 #   • labops-tg-plugin    — Telegram-канал (бот, голос)
+# Каждый из соседних репозиториев ставится СВОИМ install.sh отдельной командой
+# оператора — см. вывод скрипта после клонирования, либо README → Quickstart.
 #
 # Использование:
-#   ./install.sh              # деплой + siblings + self-test + Developer (интерактивно)
+#   ./install.sh              # деплой + клонирование siblings + self-test + Developer (интерактивно)
 #   ./install.sh --test-only  # только self-test
-#   ./install.sh --no-agent   # подготовить, но агента не создавать
-#   ./install.sh --yes        # не спрашивать подтверждение перед установкой labops-second-brain
+#   ./install.sh --no-agent   # подготовить + склонировать siblings, но агента не создавать
+#                             # (рекомендуется: сначала поставьте siblings их install.sh,
+#                             #  потом bash skills/create-agent/new-agent.sh)
 #
 # Env overrides:
-#   GITHUB_TOKEN=ghp_xxx      # нужен на чистом VPS для клонирования приватного labops-second-brain
-#   SKIP_SECOND_BRAIN=1       # не клонировать/не ставить labops-second-brain
-#   SKIP_TG_PLUGIN=1          # не клонировать/не ставить labops-tg-plugin
-#   AUTO_YES=1                # то же самое, что --yes
+#   GITHUB_TOKEN=ghp_xxx      # нужен на чистом VPS для клонирования приватных labops-*
+#   SKIP_SECOND_BRAIN=1       # не клонировать labops-second-brain
+#   SKIP_TG_PLUGIN=1          # не клонировать labops-tg-plugin
 
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +38,6 @@ die()  { printf "${R}✗ %s${N}\n" "$*" >&2; exit 1; }
 MODE="full"
 [ "${1:-}" = "--test-only" ] && MODE="test"
 [ "${1:-}" = "--no-agent" ] && MODE="prep"
-[ "${1:-}" = "--yes" ] && AUTO_YES=1
 
 echo "════════════════════════════════════════════"
 echo "  labops-agent-architecture · установка"
@@ -151,26 +152,21 @@ else
   TG=""
 fi
 
-# ── Установка соседних репозиториев их же install.sh ──────────────
-if [ -n "$TG" ] && [ -x "$TG/install.sh" ]; then
-  say "Устанавливаю labops-tg-plugin ($TG)"
-  ( cd "$TG" && ./install.sh ) || die "labops-tg-plugin/install.sh провалился — установка остановлена."
-  ok "labops-tg-plugin установлен"
+# ── Соседние репозитории склонированы, но НЕ установлены ──────────
+# Каждый ставится своим install.sh отдельной командой оператора:
+if [ -n "$TG" ]; then
+  say "labops-tg-plugin склонирован ($TG) — установите отдельной командой:"
+  echo "    cd $TG && ./install.sh"
 fi
 
-if [ -n "$SB" ] && [ -x "$SB/scripts/install.sh" ]; then
-  say "labops-second-brain: root-провижининг (Postgres+pgvector, Caddy, systemd, ~1.3ГБ модель embeddings)"
-  PROCEED="${AUTO_YES:-0}"
-  if [ "$PROCEED" != "1" ] && [ -t 0 ]; then
-    read -r -p "Установить labops-second-brain сейчас? Потребуется sudo. [y/N] " ans
-    [ "$ans" = "y" ] || [ "$ans" = "Y" ] && PROCEED=1
-  fi
-  if [ "$PROCEED" = "1" ]; then
-    $SUDO bash "$SB/scripts/install.sh" || die "labops-second-brain/scripts/install.sh провалился — установка остановлена."
-    ok "labops-second-brain установлен"
-  else
-    warn "labops-second-brain НЕ установлен (пропущено оператором) — запустите позже вручную: sudo bash $SB/scripts/install.sh"
-  fi
+if [ -n "$SB" ]; then
+  say "labops-second-brain склонирован ($SB) — root-провижининг (Postgres+pgvector, Caddy, systemd, ~1.3ГБ модель embeddings). Установите одним из двух способов:"
+  echo "    Вариант 1 — вручную:"
+  echo "      sudo bash $SB/scripts/install.sh"
+  echo "    Вариант 2 — отдать Claude Code агенту (спросит подтверждение на разрушительных шагах):"
+  echo "      cd $SB && claude"
+  echo "      # в сессии: «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,"
+  echo "      #            Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»"
 fi
 
 fi  # [ "$MODE" != "test" ]
@@ -196,6 +192,10 @@ say "3. Первый агент — Developer (Разработчик)"
 echo "  Developer — кодер и «прораб»: он же дальше поднимает остальных агентов"
 echo "  своим скиллом create-agent. Сейчас проведём его настройку."
 echo
+[ -n "$TG" ] && [ ! -d "$TG/plugin/node_modules" ] && \
+  warn "labops-tg-plugin ещё не установлен ($TG) — Telegram-канал будет недоступен, пока не выполните: cd $TG && ./install.sh"
+[ -n "$SB" ] && [ ! -x "$SB/.venv/bin/python" ] && \
+  warn "labops-second-brain ещё не установлен ($SB) — токен агента придётся ввести вручную позже, см. вывод выше"
 export AGENT_NAME="${AGENT_NAME:-Developer}"
 export AGENT_ROLE="${AGENT_ROLE:-Разработчик}"
 export AGENT_ROLE_DESCRIPTION="${AGENT_ROLE_DESCRIPTION:-Автономный разработчик: пишет код, ревьюит архитектуру, гоняет тесты и помогает оператору создавать новых агентов.}"
