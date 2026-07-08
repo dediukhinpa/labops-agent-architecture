@@ -103,8 +103,8 @@ flowchart LR
 
 Остальное в README можно читать по мере надобности — для первого агента достаточно:
 
-1. **Зависимости:** `claude` (Claude Code) + разовый `claude setup-token` (подписка Max/Pro), `tmux`, `systemd`, `curl`, `jq`. Плюс соседние репо: `labops-second-brain` (Bearer-токен) и `labops-tg-plugin` (чат).
-2. **Поставить движок и войти:** `npm i -g @anthropic-ai/claude-code && claude setup-token`.
+1. **Одна команда ставит всё:** `bash install.sh` — устанавливает tmux/git/curl/jq/unzip + Claude Code (нативный установщик, Node.js не нужен), затем сам клонирует и устанавливает соседние репозитории: `labops-tg-plugin` и `labops-second-brain`.
+2. **Авторизуйтесь один раз:** `claude setup-token` (подписка Max/Pro).
 3. **Создать первого агента:** `bash install.sh` — спросит имя/модель/Telegram-бота, всё развернёт и прогонит smoke. Для Developer модель по умолчанию `opus` (Opus 4.8).
 4. **Telegram-бот заранее:** @BotFather → `/newbot` → токен; свой `user_id` у @userinfobot (см. шаг установки — он проведёт).
 
@@ -112,16 +112,22 @@ flowchart LR
 > Для Developer модель по умолчанию `opus` (Opus 4.8). Вы ставите только первого агента — дальше рой растёт сам: Developer разворачивает остальных через скилл `create-agent`.
 
 ```bash
-# 1. Сначала поднять соседние репозитории (мозг + канал)
-#    см. labops-second-brain/README и labops-tg-plugin/README
-
-# 1a. Подключить движок и модель
-npm i -g @anthropic-ai/claude-code
-claude setup-token       # вход по подписке Max/Pro (выбор модели — в диалоге установки ниже)
-
-# 2. Установить Developer-агента из этого репозитория
+# 1. Клонируем репозиторий и запускаем установщик — он сам разворачивает
+#    tmux/curl/jq/unzip, Claude Code (нативный, без Node.js) и
+#    клонирует+устанавливает соседние репо (labops-tg-plugin, labops-second-brain).
+#    Все три labops-* репо могут быть приватными — на чистом VPS без gh/SSH
+#    сначала экспортируйте токен (fine-grained, Contents:Read на все три репо,
+#    выданный от аккаунта владельца репозиториев на GitHub) и используйте
+#    форму клонирования с токеном ниже. Команда работает одинаково для
+#    публичных и приватных репо — запомните её одну.
+export GITHUB_TOKEN=ghp_xxx
+git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
+  clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
-bash install.sh          # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
+bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
+
+# 2. Авторизуйтесь один раз (подписка Max/Pro; выбор модели — в диалоге установки выше)
+claude setup-token
 
 # 3. После установки рой расширяется самим Developer-агентом
 #    (он вызывает скилл create-agent по просьбе Оператора)
@@ -393,26 +399,33 @@ flowchart LR
 
 Корневой `install.sh` ставит **первого агента — Developer / Разработчик** «под ключ» end-to-end и в конце прогоняет тесты/smoke. Внутри он использует те же примитивы, что и скилл `create-agent`: скаффолд через `agent-template`, регистрация бота, голос, second_brain-токен, systemd-автозапуск.
 
-**Зависимости (скрипт их проверяет):**
+**Зависимости (скрипт их устанавливает):**
 
-- установленный **`labops-second-brain`** — чтобы выдать агенту Bearer-токен и поднять MCP `memory`/`recall`/`swarm`;
-- установленный **`labops-tg-plugin`** — канал, через который агент общается в Telegram;
-- **Claude Code (движок) + подключённая модель** — `npm i -g @anthropic-ai/claude-code`, затем **разово авторизоваться по подписке**: `claude setup-token` (Max/Pro, первая сторона — без third-party риска). Модель агента задаётся в `settings.json` (поле `model`); диалог установки спрашивает её и для Developer рекомендует **`opus` (Opus 4.8)**. Без авторизации агент стартует под systemd, но не достучится до модели — это ловит smoke-тест (шаг «модель отвечает»).
+- **Claude Code** — устанавливается самим `install.sh` через нативный установщик (без Node.js/npm); затем **разово авторизоваться по подписке**: `claude setup-token` (Max/Pro, первая сторона — без third-party риска). Модель агента задаётся в `settings.json` (поле `model`); диалог установки спрашивает её и для Developer рекомендует **`opus` (Opus 4.8)**. Без авторизации агент стартует под systemd, но не достучится до модели — это ловит smoke-тест (шаг «модель отвечает»).
+- **`labops-tg-plugin`** — клонируется в `~/labops-tg-plugin` и устанавливается самим `install.sh`; канал, через который агент общается в Telegram.
+- **`labops-second-brain`** — клонируется в `~/labops-second-brain` через `install.sh`; чтобы выдать агенту Bearer-токен и поднять MCP `memory`/`recall`/`swarm`, вас попросят подтвердить запуск корневого установщика (Postgres+pgvector, Caddy, systemd, ~1.3 ГБ модель эмбеддингов).
+- Все три репо `labops-*` могут быть приватными — см. заметку о `GITHUB_TOKEN` в разделе «Быстрый старт» для установки на чистый VPS без `gh`/SSH.
 
 > [!IMPORTANT]
 > **Модель и авторизация.** Разово войдите через `claude setup-token` (подписка Max/Pro, первая сторона — без third-party риска). Модель агента задаётся в `settings.json` (поле `model`); для Developer рекомендуется `opus` (Opus 4.8). Без авторизации агент стартует, но не достучится до модели.
 
 ```bash
-# 1. Сначала поднять соседние репозитории (мозг + канал)
-#    см. labops-second-brain/README и labops-tg-plugin/README
-
-# 1a. Подключить движок и модель
-npm i -g @anthropic-ai/claude-code
-claude setup-token       # вход по подписке Max/Pro (выбор модели — в диалоге установки ниже)
-
-# 2. Установить Developer-агента из этого репозитория
+# 1. Клонируем репозиторий и запускаем установщик — он сам разворачивает
+#    tmux/curl/jq/unzip, Claude Code (нативный, без Node.js) и
+#    клонирует+устанавливает соседние репо (labops-tg-plugin, labops-second-brain).
+#    Все три labops-* репо могут быть приватными — на чистом VPS без gh/SSH
+#    сначала экспортируйте токен (fine-grained, Contents:Read на все три репо,
+#    выданный от аккаунта владельца репозиториев на GitHub) и используйте
+#    форму клонирования с токеном ниже. Команда работает одинаково для
+#    публичных и приватных репо — запомните её одну.
+export GITHUB_TOKEN=ghp_xxx
+git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
+  clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
-bash install.sh          # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
+bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
+
+# 2. Авторизуйтесь один раз (подписка Max/Pro; выбор модели — в диалоге установки выше)
+claude setup-token
 
 # 3. После установки рой расширяется самим Developer-агентом
 #    (он вызывает скилл create-agent по просьбе Оператора)

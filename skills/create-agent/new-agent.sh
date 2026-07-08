@@ -54,7 +54,7 @@ if command -v claude >/dev/null 2>&1; then
   echo "    Если агент ещё не авторизован — выполните разово (под пользователем агента):"
   echo "      claude setup-token        # вход по подписке Max/Pro (первая сторона, без third-party)"
 else
-  warn "claude не в PATH — поставьте: npm i -g @anthropic-ai/claude-code, затем 'claude setup-token'"
+  warn "claude не в PATH — поставьте: curl -fsSL https://claude.ai/install.sh | bash, затем 'claude setup-token'"
 fi
 
 TG_PLUGIN_DIR="${TG_PLUGIN_DIR:-}"

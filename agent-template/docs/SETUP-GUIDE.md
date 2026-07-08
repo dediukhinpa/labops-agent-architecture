@@ -24,7 +24,7 @@ shared brain on each session start.
 ## Prerequisites
 
 - macOS or Linux with bash, `jq`, `python3`, `curl`, `git`
-- Claude Code CLI: `npm install -g @anthropic-ai/claude-code`
+- Claude Code CLI: `curl -fsSL https://claude.ai/install.sh | bash` (native installer, no Node.js needed)
 - second_brain server already deployed and reachable. You need:
   - `MCP_HOST` URL (e.g. `https://mcp.example.com` or `http://<vps-ip>:8767`)
   - Agent bearer token issued by

@@ -68,7 +68,7 @@ echo "============================================"
 echo ""
 
 if ! command -v claude &>/dev/null; then
-    warn "Claude Code CLI not found. Install: npm install -g @anthropic-ai/claude-code"
+    warn "Claude Code CLI not found. Install: curl -fsSL https://claude.ai/install.sh | bash"
     warn "Continuing anyway (workspace will be ready when you install the CLI)."
 fi
 

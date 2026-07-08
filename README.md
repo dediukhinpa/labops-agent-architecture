@@ -103,8 +103,8 @@ Responsibility boundaries of the three repositories:
 
 Everything else in this README can be read as needed — for the first agent this is enough:
 
-1. **Dependencies:** `claude` (Claude Code) + a one-time `claude setup-token` (Max/Pro subscription), `tmux`, `systemd`, `curl`, `jq`. Plus the sibling repos: `labops-second-brain` (Bearer token) and `labops-tg-plugin` (chat).
-2. **Install the engine and sign in:** `npm i -g @anthropic-ai/claude-code && claude setup-token`.
+1. **One command installs everything:** `bash install.sh` — installs tmux/git/curl/jq/unzip + Claude Code (native installer, no Node.js required), then clones and installs the sibling repos itself: `labops-tg-plugin` and `labops-second-brain`.
+2. **Sign in once:** `claude setup-token` (Max/Pro subscription).
 3. **Create the first agent:** `bash install.sh` — it asks for name/model/Telegram bot, deploys everything, and runs a smoke test. For the Developer the default model is `opus` (Opus 4.8).
 4. **Telegram bot up front:** @BotFather → `/newbot` → token; get your `user_id` from @userinfobot (the install step will walk you through it).
 
@@ -112,16 +112,22 @@ Everything else in this README can be read as needed — for the first agent thi
 > For the Developer the default model is `opus` (Opus 4.8). You install only the first agent — then the swarm grows itself: the Developer spawns the rest via the `create-agent` skill.
 
 ```bash
-# 1. Bring up the sibling repos first (brain + channel)
-#    see labops-second-brain/README and labops-tg-plugin/README
-
-# 1a. Install the engine and connect the model
-npm i -g @anthropic-ai/claude-code
-claude setup-token       # sign in with a Max/Pro subscription (model choice is in the install dialog below)
-
-# 2. Install the Developer agent from this repository
+# 1. Clone this repo and run its installer — it deploys tmux/curl/jq/unzip,
+#    Claude Code (native, no Node.js), and clones+installs the sibling repos
+#    (labops-tg-plugin, labops-second-brain) itself.
+#    All three labops-* repos may be private — on a clean VPS with no gh/SSH
+#    set up, export a token first (fine-grained, Contents:Read on all three
+#    repos, issued from the repo-owner GitHub account) and use the
+#    token-authenticated clone form below. It works the same whether the
+#    repo is public or private, so this is the one command to remember.
+export GITHUB_TOKEN=ghp_xxx
+git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
+  clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
-bash install.sh          # model → identity → scaffold → bot → voice → token → systemd → smoke
+bash install.sh   # model → identity → scaffold → bot → voice → token → systemd → smoke
+
+# 2. Sign in once (Max/Pro subscription; model choice is in the install dialog above)
+claude setup-token
 
 # 3. After install, the swarm is grown by the Developer agent itself
 #    (it invokes the create-agent skill at the Operator's request)
@@ -393,26 +399,33 @@ The bundle in [`skills/`](skills/) is installed by symlink into `~/.claude/skill
 
 The root `install.sh` installs the **first agent — Developer** turnkey, end-to-end, and runs tests/smoke at the end. Internally it uses the same primitives as the `create-agent` skill: scaffold via `agent-template`, bot registration, voice, second_brain token, systemd autostart.
 
-**Dependencies (the script checks them):**
+**Dependencies (the script installs them):**
 
-- an installed **`labops-second-brain`** — to issue the agent a Bearer token and bring up the MCP `memory`/`recall`/`swarm`;
-- an installed **`labops-tg-plugin`** — the channel through which the agent talks on Telegram;
-- **Claude Code (the engine) + a connected model** — `npm i -g @anthropic-ai/claude-code`, then a **one-time subscription sign-in**: `claude setup-token` (Max/Pro, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); the install dialog asks for it and recommends **`opus` (Opus 4.8)** for the Developer. Without sign-in the agent starts under systemd but can't reach the model — the smoke test catches this (the "model responds" step).
+- **Claude Code** — installed by `install.sh` itself via the native installer (no Node.js/npm); then a **one-time subscription sign-in**: `claude setup-token` (Max/Pro, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); the install dialog asks for it and recommends **`opus` (Opus 4.8)** for the Developer. Without sign-in the agent starts under systemd but can't reach the model — the smoke test catches this (the "model responds" step).
+- **`labops-tg-plugin`** — cloned to `~/labops-tg-plugin` and installed by `install.sh` itself; the channel through which the agent talks on Telegram.
+- **`labops-second-brain`** — cloned to `~/labops-second-brain` by `install.sh`; to issue the agent a Bearer token and bring up the MCP `memory`/`recall`/`swarm` you'll be asked to confirm running its root-level installer (Postgres+pgvector, Caddy, systemd, ~1.3 GB embeddings model).
+- All three `labops-*` repos may be private — see the `GITHUB_TOKEN` note in Quickstart for clean-VPS installs with no `gh`/SSH configured.
 
 > [!IMPORTANT]
 > **Model & auth.** Sign in once with `claude setup-token` (Max/Pro subscription, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); `opus` (Opus 4.8) is recommended for the Developer. Without sign-in the agent starts but can't reach a model.
 
 ```bash
-# 1. Bring up the sibling repos first (brain + channel)
-#    see labops-second-brain/README and labops-tg-plugin/README
-
-# 1a. Connect the engine and the model
-npm i -g @anthropic-ai/claude-code
-claude setup-token       # sign in with a Max/Pro subscription (model choice is in the install dialog below)
-
-# 2. Install the Developer agent from this repository
+# 1. Clone this repo and run its installer — it deploys tmux/curl/jq/unzip,
+#    Claude Code (native, no Node.js), and clones+installs the sibling repos
+#    (labops-tg-plugin, labops-second-brain) itself.
+#    All three labops-* repos may be private — on a clean VPS with no gh/SSH
+#    set up, export a token first (fine-grained, Contents:Read on all three
+#    repos, issued from the repo-owner GitHub account) and use the
+#    token-authenticated clone form below. It works the same whether the
+#    repo is public or private, so this is the one command to remember.
+export GITHUB_TOKEN=ghp_xxx
+git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
+  clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
-bash install.sh          # model → identity → scaffold → bot → voice → token → systemd → smoke
+bash install.sh   # model → identity → scaffold → bot → voice → token → systemd → smoke
+
+# 2. Sign in once (Max/Pro subscription; model choice is in the install dialog above)
+claude setup-token
 
 # 3. After install, the swarm grows via the Developer agent itself
 #    (it invokes the create-agent skill at the Operator's request)
