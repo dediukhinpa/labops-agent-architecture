@@ -17,8 +17,10 @@
 #   ./install.sh              # деплой + клонирование siblings + self-test + Developer (интерактивно)
 #   ./install.sh --test-only  # только self-test
 #   ./install.sh --no-agent   # подготовить + склонировать siblings, но агента не создавать
-#                             # (рекомендуется: сначала поставьте siblings их install.sh,
-#                             #  потом bash skills/create-agent/new-agent.sh)
+#                             # (рекомендуемый порядок: claude setup-token, потом
+#                             #  bash skills/create-agent/new-agent.sh — агент стартует
+#                             #  в деградированном режиме, пока не поставите siblings их
+#                             #  install.sh, см. README → Quickstart)
 #
 # Env overrides:
 #   GITHUB_TOKEN=ghp_xxx      # нужен на чистом VPS для клонирования приватных labops-*
