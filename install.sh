@@ -6,7 +6,8 @@
 # мозг + Telegram + голос + автостарт, со встроенным скиллом create-agent, которым
 # Developer дальше поднимает остальных агентов. В конце — self-test (gate).
 #
-# Зависимости (поставьте сначала):
+# Ставит сам: tmux/git/curl/jq/unzip, Claude Code (нативно, без Node.js),
+# и клонирует+ставит соседние репозитории:
 #   • labops-second-brain — общий мозг (для токена агента)
 #   • labops-tg-plugin    — Telegram-канал (бот, голос)
 #
@@ -132,6 +133,8 @@ clone_repo() {
   rm -f "$err_log"
 }
 
+if [ "$MODE" != "test" ]; then
+
 SB="${SECOND_BRAIN_DIR:-$HOME/labops-second-brain}"
 if [ "${SKIP_SECOND_BRAIN:-0}" != "1" ]; then
   clone_repo "labops-second-brain" "https://github.com/dediukhinpa/labops-second-brain.git" "$SB"
@@ -169,6 +172,8 @@ if [ -n "$SB" ] && [ -x "$SB/scripts/install.sh" ]; then
     warn "labops-second-brain НЕ установлен (пропущено оператором) — запустите позже вручную: sudo bash $SB/scripts/install.sh"
   fi
 fi
+
+fi  # [ "$MODE" != "test" ]
 
 # скрипты должны быть исполняемыми
 chmod +x "$REPO_DIR"/test.sh "$REPO_DIR"/orchestration/*.sh "$REPO_DIR"/skills/create-agent/*.sh \
