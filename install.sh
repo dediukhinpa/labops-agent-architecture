@@ -11,9 +11,16 @@
 #   • labops-tg-plugin    — Telegram-канал (бот, голос)
 #
 # Использование:
-#   ./install.sh              # self-test + создать агента Developer (интерактивно)
+#   ./install.sh              # деплой + siblings + self-test + Developer (интерактивно)
 #   ./install.sh --test-only  # только self-test
 #   ./install.sh --no-agent   # подготовить, но агента не создавать
+#   ./install.sh --yes        # не спрашивать подтверждение перед установкой labops-second-brain
+#
+# Env overrides:
+#   GITHUB_TOKEN=ghp_xxx      # нужен на чистом VPS для клонирования приватного labops-second-brain
+#   SKIP_SECOND_BRAIN=1       # не клонировать/не ставить labops-second-brain
+#   SKIP_TG_PLUGIN=1          # не клонировать/не ставить labops-tg-plugin
+#   AUTO_YES=1                # то же самое, что --yes
 
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,6 +35,7 @@ die()  { printf "${R}✗ %s${N}\n" "$*" >&2; exit 1; }
 MODE="full"
 [ "${1:-}" = "--test-only" ] && MODE="test"
 [ "${1:-}" = "--no-agent" ] && MODE="prep"
+[ "${1:-}" = "--yes" ] && AUTO_YES=1
 
 echo "════════════════════════════════════════════"
 echo "  labops-agent-architecture · установка"
@@ -138,6 +146,28 @@ if [ "${SKIP_TG_PLUGIN:-0}" != "1" ]; then
 else
   warn "labops-tg-plugin пропущен (SKIP_TG_PLUGIN=1) — Telegram-канал будет пропущен"
   TG=""
+fi
+
+# ── Установка соседних репозиториев их же install.sh ──────────────
+if [ -n "$TG" ] && [ -x "$TG/install.sh" ]; then
+  say "Устанавливаю labops-tg-plugin ($TG)"
+  ( cd "$TG" && ./install.sh ) || die "labops-tg-plugin/install.sh провалился — установка остановлена."
+  ok "labops-tg-plugin установлен"
+fi
+
+if [ -n "$SB" ] && [ -x "$SB/scripts/install.sh" ]; then
+  say "labops-second-brain: root-провижининг (Postgres+pgvector, Caddy, systemd, ~1.3ГБ модель embeddings)"
+  PROCEED="${AUTO_YES:-0}"
+  if [ "$PROCEED" != "1" ] && [ -t 0 ]; then
+    read -r -p "Установить labops-second-brain сейчас? Потребуется sudo. [y/N] " ans
+    [ "$ans" = "y" ] || [ "$ans" = "Y" ] && PROCEED=1
+  fi
+  if [ "$PROCEED" = "1" ]; then
+    $SUDO bash "$SB/scripts/install.sh" || die "labops-second-brain/scripts/install.sh провалился — установка остановлена."
+    ok "labops-second-brain установлен"
+  else
+    warn "labops-second-brain НЕ установлен (пропущено оператором) — запустите позже вручную: sudo bash $SB/scripts/install.sh"
+  fi
 fi
 
 # скрипты должны быть исполняемыми
