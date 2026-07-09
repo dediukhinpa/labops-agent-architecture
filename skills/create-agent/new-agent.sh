@@ -94,10 +94,19 @@ MCP_HOST="${MCP_HOST%/}"
 
 # ── 2. Токен второго мозга ──────────────────────────────────────
 say "2. Токен во втором мозге"
-SECOND_BRAIN_DIR="${SECOND_BRAIN_DIR:-}"
-for cand in "$SECOND_BRAIN_DIR" /opt/second_brain "$HOME/labops-second-brain"; do
-  [ -n "$cand" ] && [ -x "$cand/.venv/bin/python" ] && [ -f "$cand/scripts/issue-agent-token.py" ] && SECOND_BRAIN_DIR="$cand" && break
+# Валидируем в отдельную переменную и присваиваем результат ПОСЛЕ цикла —
+# если SECOND_BRAIN_DIR пришёл предустановленным (напр. из install.sh,
+# который экспортирует путь клонированного репо, не проверяя venv), а ни
+# один кандидат не прошёл проверку, SECOND_BRAIN_DIR должен стать пустым,
+# а не тихо остаться на невалидном значении.
+_SB_FOUND=""
+for cand in "${SECOND_BRAIN_DIR:-}" /opt/second_brain "$HOME/labops-second-brain"; do
+  if [ -n "$cand" ] && [ -x "$cand/.venv/bin/python" ] && [ -f "$cand/scripts/issue-agent-token.py" ]; then
+    _SB_FOUND="$cand"
+    break
+  fi
 done
+SECOND_BRAIN_DIR="$_SB_FOUND"
 if [ -z "${AGENT_BEARER:-}" ] && [ -n "$SECOND_BRAIN_DIR" ]; then
   ok "Выдаю токен через $SECOND_BRAIN_DIR/scripts/issue-agent-token.py"
   AGENT_BEARER="$("$SECOND_BRAIN_DIR/.venv/bin/python" "$SECOND_BRAIN_DIR/scripts/issue-agent-token.py" \
