@@ -113,13 +113,7 @@ This is three **separate** `install.sh` scripts, one per repo — no script runs
 > For the Developer the default model is `opus` (Opus 4.8). You install only the first agent — then the swarm grows itself: the Developer spawns the rest via the `create-agent` skill.
 
 ```bash
-# All three labops-* repos may be private — on a clean VPS with no gh/SSH set
-# up, export a token first (fine-grained, Contents:Read on all three repos,
-# issued from the repo-owner GitHub account) and use the token-authenticated
-# clone form below. It works the same whether the repo is public or private.
-export GITHUB_TOKEN=ghp_xxx
-git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
-  clone https://github.com/dediukhinpa/labops-agent-architecture.git
+git clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
 
 # One command: deps + self-test + sign-in (if needed) + Developer agent.
@@ -129,6 +123,9 @@ cd labops-agent-architecture
 # separate command, run from its own repo — steps 2-3 above.
 bash install.sh
 ```
+
+> [!NOTE]
+> If a `labops-*` repo turns out private, `install.sh` retries cloning it with `GITHUB_TOKEN` (fine-grained PAT, `Contents: Read`, issued from the repo-owner GitHub account) — `export GITHUB_TOKEN=ghp_xxx` before running the block above.
 
 All three repos are cloned to disk by the block above (`git clone` gets this repo, `bash install.sh` clones the other two). Only this repo is *installed* by it, though — `labops-tg-plugin` and `labops-second-brain` still need their own `install.sh` run from inside `~/labops-tg-plugin` and `~/labops-second-brain` (steps 2-3 above, with links to their Quickstarts). If something is missing, the install honestly lists what is **not** configured (rather than showing a false green).
 
@@ -401,20 +398,13 @@ The root `install.sh` installs **this repo only** — foundation deps, Claude Co
 - **Claude Code** — installed by `install.sh` itself via the native installer (no Node.js/npm); then a **one-time subscription sign-in**: `install.sh` runs `claude setup-token` (Max/Pro, first-party — no third-party risk) for you automatically, right before creating the first agent, if you haven't signed in yet. The agent's model is set in `settings.json` (the `model` field); the `create-agent` dialog asks for it and recommends **`opus` (Opus 4.8)** for the Developer. Without sign-in the agent starts under systemd but can't reach the model — the smoke test catches this (the "model responds" step).
 - **`labops-tg-plugin`** — cloned to `~/labops-tg-plugin` by `install.sh`; install it yourself with its own `cd ~/labops-tg-plugin && ./install.sh` (right after setting up the bot with @BotFather) — the channel through which the agent talks on Telegram. If you create the Developer agent before this step, it starts in degraded mode until you install this repo.
 - **`labops-second-brain`** — cloned to `~/labops-second-brain` by `install.sh`; install it yourself either by running `sudo bash ~/labops-second-brain/scripts/install.sh` directly, or by handing it to a Claude Code agent (`cd ~/labops-second-brain && claude`, then paste the prompt from Quickstart step 3 — it follows `AGENT.md` and asks for confirmation on destructive steps) — issues the agent a Bearer token and brings up the MCP `memory`/`recall`/`swarm`.
-- All three `labops-*` repos may be private — see the `GITHUB_TOKEN` note in Quickstart for clean-VPS installs with no `gh`/SSH configured.
+- If a `labops-*` repo turns out private, `install.sh` retries with `GITHUB_TOKEN` (fine-grained PAT, `Contents: Read`) on a clean VPS with no `gh`/SSH configured.
 
 > [!IMPORTANT]
 > **Model & auth.** Sign in once with `claude setup-token` (Max/Pro subscription, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); `opus` (Opus 4.8) is recommended for the Developer. Without sign-in the agent starts but can't reach a model.
 
 ```bash
-# Clone this repo. All three labops-* repos may be private — on a clean VPS
-# with no gh/SSH set up, export a token first (fine-grained, Contents:Read on
-# all three repos, issued from the repo-owner GitHub account) and use the
-# token-authenticated clone form below. It works the same whether the repo is
-# public or private, so this is the one command to remember.
-export GITHUB_TOKEN=ghp_xxx
-git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
-  clone https://github.com/dediukhinpa/labops-agent-architecture.git
+git clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
 
 # One command: deps + self-test + sign-in (if needed) + Developer agent.
@@ -422,6 +412,9 @@ cd labops-agent-architecture
 # labops-tg-plugin -> ~/labops-tg-plugin, labops-second-brain -> ~/labops-second-brain.
 bash install.sh   # model → identity → scaffold → bot → voice → token → systemd → smoke
 ```
+
+> [!NOTE]
+> If a `labops-*` repo turns out private, `install.sh` retries cloning it with `GITHUB_TOKEN` (fine-grained PAT, `Contents: Read`, issued from the repo-owner GitHub account) — `export GITHUB_TOKEN=ghp_xxx` before running the block above.
 
 All three repos are on disk after the block above (`git clone` gets this repo, `bash install.sh` clones the other two) — but only this repo is *installed* by it. Install the siblings yourself, each from its own repo — see Quickstart steps 2-3 above for links to their own install docs.
 
