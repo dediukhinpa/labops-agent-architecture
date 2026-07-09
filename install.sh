@@ -38,7 +38,7 @@
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-C='\033[0;36m'; G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; N='\033[0m'
+C='\033[0;36m'; G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; B='\033[1m'; N='\033[0m'
 say()  { printf "\n${C}▶ %s${N}\n" "$*"; }
 ok()   { printf "${G}✓ %s${N}\n" "$*"; }
 warn() { printf "${Y}⚠ %s${N}\n" "$*"; }
@@ -376,8 +376,8 @@ if [ -d "$DEV_WS" ] && [ ! -e "$DEV_WS/skills/create-agent" ]; then
 fi
 
 say "Готово."
-echo "  Developer создан. Напишите ему в Telegram, либо запустите вручную:"
-echo "    source $DEV_WS/agent.env && claude --project $DEV_WS"
+printf "  ${G}Developer создан.${N} Напишите ему в Telegram, либо запустите вручную:\n"
+printf "    ${B}source %s/agent.env && claude --project %s${N}\n" "$DEV_WS" "$DEV_WS"
 echo "  Чтобы добавить следующего агента — попросите Developer «заведи нового агента»"
 echo "  (он применит скилл create-agent) или запустите:"
-echo "    bash skills/create-agent/new-agent.sh"
+printf "    ${B}bash skills/create-agent/new-agent.sh${N}\n"

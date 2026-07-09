@@ -39,7 +39,7 @@ if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -f "$LAB_DIR/shared/secrets/claude
   export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$LAB_DIR/shared/secrets/claude-oauth-token")"
 fi
 
-C='\033[0;36m'; G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; N='\033[0m'
+C='\033[0;36m'; G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; B='\033[1m'; N='\033[0m'
 say()  { printf "\n${C}▶ %s${N}\n" "$*"; }
 ok()   { printf "${G}✓ %s${N}\n" "$*"; }
 warn() { printf "${Y}⚠ %s${N}\n" "$*"; }
@@ -130,14 +130,16 @@ if [ -z "${AGENT_BEARER:-}" ]; then
     # мог быть выдан вручную на другом хосте, есть смысл спросить.
     ask AGENT_BEARER "Bearer-токен агента (issue-agent-token.py на VPS мозга)" "CHANGE_ME"
   else
-    # second_brain не найден вообще — спрашивать нечего, у оператора точно
-    # нет токена. Молча ставим плейсхолдер и оставляем чёткий след в DEGRADED.
+    # second_brain не найден вообще — это ожидаемо при первой установке
+    # (second_brain по канону ставится третьим репозиторием). Не варн, не
+    # DEGRADED — просто ставим плейсхолдер, это не "дыра", а штатный порядок.
     AGENT_BEARER="CHANGE_ME"
-    warn "second_brain не найден локально — токен не запрашиваю, ставлю плейсхолдер"
   fi
 fi
-if [ "$AGENT_BEARER" = "CHANGE_ME" ]; then
-  DEGRADED+=("нет реального Bearer-токена (second_brain не найден/не выдал) — после установки second_brain выполните: python <second_brain>/scripts/issue-agent-token.py --agent $AGENT_ID --scopes '$AGENT_SCOPES', впишите токен в $LAB_DIR/$AGENT_ID/.claude/agent.env (AGENT_BEARER=...) и перезапустите сервис агента")
+if [ "$AGENT_BEARER" = "CHANGE_ME" ] && [ -n "$SECOND_BRAIN_DIR" ]; then
+  # А вот это уже нештатно: second_brain НАЙДЕН локально, но токен всё равно
+  # не выдался (ни авто, ни вручную на вопрос) — стоит явно подсветить.
+  DEGRADED+=("нет реального Bearer-токена (second_brain найден в $SECOND_BRAIN_DIR, но токен не выдался) — выполните: python $SECOND_BRAIN_DIR/scripts/issue-agent-token.py --agent $AGENT_ID --scopes '$AGENT_SCOPES', впишите токен в $LAB_DIR/$AGENT_ID/.claude/agent.env (AGENT_BEARER=...) и перезапустите сервис агента")
 fi
 
 # ── 3. Скаффолд воркспейса (agent-template, неинтерактивно) ──────
@@ -283,10 +285,12 @@ fi
 say "7. Smoke-тест"
 FAIL=0
 # 7a. второй мозг отвечает — только если у нас есть настоящий токен. Без него
-# (AGENT_BEARER=CHANGE_ME, second_brain ещё не установлен — см. DEGRADED выше)
-# запрос гарантированно провалится и это ожидаемо, а не поломка.
+# (AGENT_BEARER=CHANGE_ME) запрос гарантированно провалится: либо second_brain
+# ещё не установлен (штатно, см. шаг 2 — там уже ничего лишнего не пишем),
+# либо найден, но токен не выдался (уже отмечено в DEGRADED). Тут — тихо
+# пропускаем, без повторного предупреждения.
 if [ "$AGENT_BEARER" = "CHANGE_ME" ]; then
-  warn "second_brain: пропускаю проверку — токена нет (second_brain ещё не установлен, см. выше)"
+  :
 elif curl -fsS -H "Authorization: Bearer $AGENT_BEARER" \
         -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" \
         -X POST "$SECOND_BRAIN_MEMORY_ROUTER_URL" \
@@ -331,9 +335,10 @@ if [ "${#DEGRADED[@]}" -gt 0 ]; then
   printf "${Y}   Что НЕ работает / не настроено:${N}\n"
   for d in "${DEGRADED[@]}"; do printf "     • %s\n" "$d"; done
 fi
-echo "   Воркспейс: $WORKSPACE"
+printf "   Воркспейс: ${B}%s${N}\n" "$WORKSPACE"
 if [ -f "$LAB_DIR/shared/secrets/claude-oauth-token" ]; then
-  echo "   Запуск вручную: source $WORKSPACE/agent.env && export CLAUDE_CODE_OAUTH_TOKEN=\$(cat $LAB_DIR/shared/secrets/claude-oauth-token) && claude --project $WORKSPACE"
+  printf "   Запуск вручную:\n     ${B}source %s/agent.env && export CLAUDE_CODE_OAUTH_TOKEN=\$(cat %s/shared/secrets/claude-oauth-token) && claude --project %s${N}\n" \
+    "$WORKSPACE" "$LAB_DIR" "$WORKSPACE"
 else
-  echo "   Запуск вручную: source $WORKSPACE/agent.env && claude --project $WORKSPACE"
+  printf "   Запуск вручную:\n     ${B}source %s/agent.env && claude --project %s${N}\n" "$WORKSPACE" "$WORKSPACE"
 fi
