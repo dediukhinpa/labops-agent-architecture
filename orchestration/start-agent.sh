@@ -20,7 +20,7 @@ if [ -n "$CH_ENV" ]; then set -a; . "$CH_ENV"; set +a; fi
 
 # Per-agent webhook port (config, not secret): из channel.env, иначе детермини-
 # рованно из позиции агента в ростере (lib/agents.sh), от WEBHOOK_BASE_PORT.
-WEBHOOK_BASE_PORT="${WEBHOOK_BASE_PORT:-8089}"
+WEBHOOK_BASE_PORT="${WEBHOOK_BASE_PORT:-6000}"
 if [ -z "${TELEGRAM_WEBHOOK_PORT:-}" ]; then
   idx=0
   while IFS= read -r _a; do

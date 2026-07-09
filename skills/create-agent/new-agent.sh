@@ -184,12 +184,12 @@ if [ -n "$TG_PLUGIN_DIR" ]; then
     # Уникальный webhook-порт: если у ЭТОГО агента уже был channel.env (напр.
     # обновление токена при REUSE_EXISTING=1) — берём его же порт, а не ищем
     # новый (иначе порт агента "уезжает" при каждой донастройке). Иначе —
-    # первый свободный от 8089.
+    # первый свободный от 6000.
     if [ -z "${TELEGRAM_WEBHOOK_PORT:-}" ]; then
       TELEGRAM_WEBHOOK_PORT="$(grep -oP '^TELEGRAM_WEBHOOK_PORT=\K[0-9]+' "$CH_ENV" 2>/dev/null || true)"
     fi
     if [ -z "${TELEGRAM_WEBHOOK_PORT:-}" ]; then
-      TELEGRAM_WEBHOOK_PORT=8089
+      TELEGRAM_WEBHOOK_PORT=6000
       while grep -rqsE "^TELEGRAM_WEBHOOK_PORT=${TELEGRAM_WEBHOOK_PORT}\$" "$LAB_DIR"/shared/state/*/telegram/channel.env 2>/dev/null; do
         TELEGRAM_WEBHOOK_PORT=$((TELEGRAM_WEBHOOK_PORT+1))
       done
@@ -205,7 +205,7 @@ TELEGRAM_WORKSPACE_ROOT=$WORKSPACE
 AGENT_ID=$AGENT_ID
 TELEGRAM_STATE_DIR=$STATE_DIR
 TELEGRAM_WEBHOOK_HOST=127.0.0.1
-TELEGRAM_WEBHOOK_PORT=${TELEGRAM_WEBHOOK_PORT:-8089}
+TELEGRAM_WEBHOOK_PORT=${TELEGRAM_WEBHOOK_PORT:-6000}
 TELEGRAM_MEMORY_ENABLED=true
 TELEGRAM_MEMORY_WORKSPACE=$WORKSPACE
 TELEGRAM_MEMORY_AGENT_LABEL=$AGENT_NAME

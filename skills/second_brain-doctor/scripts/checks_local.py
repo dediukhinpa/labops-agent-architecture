@@ -51,8 +51,8 @@ if TYPE_CHECKING:  # pragma: no cover — import only for type hints
 # ---------------------------------------------------------------------------
 
 # Webhook listener health ports. 8091 = Hermes/Claude Code listener;
-# 8089 = jarvis-channel plugin listener.
-_WEBHOOK_PORTS: tuple[int, ...] = (8091, 8089)
+# 6000 = jarvis-channel plugin listener (was 8089).
+_WEBHOOK_PORTS: tuple[int, ...] = (8091, 6000)
 
 # Raw second_brain backend MCP service ports. If reachable from the agent machine on
 # the resolved *public* IP, the backend is exposed (actionable security issue).

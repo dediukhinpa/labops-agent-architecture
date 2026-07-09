@@ -94,7 +94,7 @@ Responsibility boundaries of the three repositories:
 | Repository | Layer | Owns |
 |---|---|---|
 | **labops-agent-architecture** (this one) | Runtime / lifecycle | workspaces, memory, watchdog, systemd, hooks, swarm automation, the `create-agent` skill |
-| **labops-tg-plugin** | Channel | receiving from Telegram (long-poll), sending replies/reactions, voice, webhook `:8089+` |
+| **labops-tg-plugin** | Channel | receiving from Telegram (long-poll), sending replies/reactions, voice, webhook `:6000+` |
 | **labops-second-brain** | Memory | Postgres+pgvector, MCP memory/memory_router/agent_router/task, RBAC via Bearer tokens |
 
 ---
@@ -148,7 +148,7 @@ flowchart LR
   subgraph live["Live runtime"]
     direction TB
     CC["claude (Claude Code CLI)<br/>--dangerously-skip-permissions<br/>server:labops-channel"]
-    BUN["channel server (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
+    BUN["channel server (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :6000+"]
     SB["second_brain MCP<br/>memory:5001 / memory_router:5002 / agent_router:5000"]
   end
   TM --> CC
@@ -448,7 +448,7 @@ bash install.sh --test-only
 | `GROQ_API_KEY` | `.claude/secrets/groq-api-key` | voice transcription (Groq Whisper) |
 | `TELEGRAM_BOT_TOKEN` | `.claude/secrets/telegram-bot-token`, `channel.env` | the agent's bot token (`@BotFather`) |
 | `TELEGRAM_WEBHOOK_TOKEN` | `.claude/secrets/telegram-webhook-token` | Bearer for inbound POSTs to `/hooks/*` |
-| `TELEGRAM_WEBHOOK_PORT` | `start-agent.sh` (config, not a secret) | the agent's webhook port (`:8089+`, per agent) |
+| `TELEGRAM_WEBHOOK_PORT` | `start-agent.sh` (config, not a secret) | the agent's webhook port (`:6000+`, per agent) |
 | `TELEGRAM_ALLOWED_USER_IDS` | `start-agent.sh` | allowlist of interlocutors — Operator only; others are dropped at the gate |
 | `TELEGRAM_STATE_DIR` | `start-agent.sh` | `~/.claude/channels/labops-<agent>` — channel state |
 | `TELEGRAM_WORKSPACE_ROOT` | `start-agent.sh` | root for attachments (path-traversal protection) |
@@ -550,7 +550,7 @@ Secrets live in `channel.env` / `.claude/secrets` (`chmod 600`) and are never co
 | Repository | Layer | Provides |
 |---|---|---|
 | **labops-agent-architecture** (this one) | runtime / lifecycle | workspaces, memory, watchdog/systemd, hooks, swarm automation, `create-agent` |
-| **[labops-tg-plugin](https://github.com/dediukhinpa/labops-tg-plugin)** | channel | per-agent Telegram bot, voice, reactions, webhook `:8089+`, channel MCP tools (`reply`/`react`/…) |
+| **[labops-tg-plugin](https://github.com/dediukhinpa/labops-tg-plugin)** | channel | per-agent Telegram bot, voice, reactions, webhook `:6000+`, channel MCP tools (`reply`/`react`/…) |
 | **[labops-second-brain](https://github.com/dediukhinpa/labops-second-brain)** | memory | Postgres+pgvector, MCP `memory:5001` / `memory_router:5002` / `agent_router:5000` / `task:5003`, RBAC by Bearer |
 
 ---

@@ -149,7 +149,7 @@ labops-channel      → Telegram webhooks и message handling
 
 ```bash
 TELEGRAM_BOT_TOKEN          # Для отправки сообщений в Telegram
-TELEGRAM_WEBHOOK_PORT       # 8089, 8090, 8091 соответственно
+TELEGRAM_WEBHOOK_PORT       # 6000, 6001, 6002 соответственно
 TELEGRAM_WEBHOOK_TOKEN      # Для webhook security
 GROQ_API_KEY               # Для voice transcription
 PATH, SHELL, и т.д.

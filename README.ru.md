@@ -94,7 +94,7 @@ flowchart LR
 | Репозиторий | Слой | Отвечает за |
 |---|---|---|
 | **labops-agent-architecture** (этот) | Рантайм / lifecycle | воркспейсы, память, watchdog, systemd, хуки, автоматизация роя, скилл `create-agent` |
-| **labops-tg-plugin** | Канал | приём из Telegram (long-poll), отправка ответов/реакций, голос, webhook `:8089+` |
+| **labops-tg-plugin** | Канал | приём из Telegram (long-poll), отправка ответов/реакций, голос, webhook `:6000+` |
 | **labops-second-brain** | Память | Postgres+pgvector, MCP memory/memory_router/agent_router/task, RBAC по Bearer-токенам |
 
 ---
@@ -148,7 +148,7 @@ flowchart LR
   subgraph live["Живой рантайм"]
     direction TB
     CC["claude (Claude Code CLI)<br/>--dangerously-skip-permissions<br/>server:labops-channel"]
-    BUN["канал-сервер (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
+    BUN["канал-сервер (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :6000+"]
     SB["second_brain MCP<br/>memory:5001 / memory_router:5002 / agent_router:5000"]
   end
   TM --> CC
@@ -448,7 +448,7 @@ bash install.sh --test-only
 | `GROQ_API_KEY` | `.claude/secrets/groq-api-key` | транскрипция голоса (Groq Whisper) |
 | `TELEGRAM_BOT_TOKEN` | `.claude/secrets/telegram-bot-token`, `channel.env` | токен бота агента (`@BotFather`) |
 | `TELEGRAM_WEBHOOK_TOKEN` | `.claude/secrets/telegram-webhook-token` | Bearer для входящих POST на `/hooks/*` |
-| `TELEGRAM_WEBHOOK_PORT` | `start-agent.sh` (config, не секрет) | порт webhook агента (`:8089+`, по агенту) |
+| `TELEGRAM_WEBHOOK_PORT` | `start-agent.sh` (config, не секрет) | порт webhook агента (`:6000+`, по агенту) |
 | `TELEGRAM_ALLOWED_USER_IDS` | `start-agent.sh` | allowlist собеседников — только Оператор; чужие отбрасываются на гейте |
 | `TELEGRAM_STATE_DIR` | `start-agent.sh` | `~/.claude/channels/labops-<agent>` — состояние канала |
 | `TELEGRAM_WORKSPACE_ROOT` | `start-agent.sh` | корень для вложений (защита от path-traversal) |
@@ -550,7 +550,7 @@ Self-hosted by design: агенты работают на собственном
 | Репозиторий | Слой | Что предоставляет |
 |---|---|---|
 | **labops-agent-architecture** (этот) | рантайм / lifecycle | воркспейсы, память, watchdog/systemd, хуки, автоматизация роя, `create-agent` |
-| **[labops-tg-plugin](https://github.com/dediukhinpa/labops-tg-plugin)** | канал | пер-агентный Telegram-бот, голос, реакции, webhook `:8089+`, MCP-инструменты канала (`reply`/`react`/…) |
+| **[labops-tg-plugin](https://github.com/dediukhinpa/labops-tg-plugin)** | канал | пер-агентный Telegram-бот, голос, реакции, webhook `:6000+`, MCP-инструменты канала (`reply`/`react`/…) |
 | **[labops-second-brain](https://github.com/dediukhinpa/labops-second-brain)** | память | Postgres+pgvector, MCP `memory:5001` / `memory_router:5002` / `agent_router:5000` / `task:5003`, RBAC по Bearer |
 
 ---

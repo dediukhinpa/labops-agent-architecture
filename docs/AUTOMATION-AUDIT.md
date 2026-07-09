@@ -51,7 +51,7 @@
 
 **Как работает:**
 - Telegram бот запущен в отдельном процессе (`bun ~/.claude-lab/<agent>/.claude/plugins/labops-channel/...`)
-- Получает webhook'и на порт 8089/8090/8091
+- Получает webhook'и на порт 6000/6001/6002
 - Реплицирует сообщение в SessionStart/UserPromptSubmit hook в settings.json
 
 **Хук в settings.json:**
