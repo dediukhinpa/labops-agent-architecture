@@ -34,8 +34,10 @@ fi
 
 # Секреты: сначала channel.env (уже в окружении после source), затем
 # .claude/secrets/ (per-agent), затем shared/secrets/ (кросс-агентные — GROQ
-# и Claude-токен обычно один на всех агентов, кладёт их туда new-agent.sh /
-# install.sh, чтобы не спрашивать заново на каждого нового агента).
+# обычно один на всех агентов, кладёт его туда new-agent.sh / install.sh,
+# чтобы не спрашивать заново на каждого нового агента). Claude Code сюда не
+# входит: TUI-сессия ниже авторизуется через ~/.claude/.credentials.json
+# (реальный вход, один на $HOME), а не через переменную окружения.
 SECRETS="$CLAUDE_LAB/$AGENT/.claude/secrets"
 SHARED_SECRETS="$CLAUDE_LAB/shared/secrets"
 read_secret_opt() { local p="$SECRETS/$1"; [ -r "$p" ] && cat "$p" || true; }
@@ -44,8 +46,6 @@ TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-$(read_secret_opt telegram-bot-token)}
 TELEGRAM_WEBHOOK_TOKEN="${TELEGRAM_WEBHOOK_TOKEN:-$(read_secret_opt telegram-webhook-token)}"
 GROQ_API_KEY="${GROQ_API_KEY:-$(read_secret_opt groq-api-key)}"
 GROQ_API_KEY="${GROQ_API_KEY:-$(read_shared_secret_opt groq-api-key)}"
-CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-$(read_secret_opt claude-oauth-token)}"
-CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-$(read_shared_secret_opt claude-oauth-token)}"
 TELEGRAM_STATE_DIR="${TELEGRAM_STATE_DIR:-$CLAUDE_LAB/shared/state/$AGENT/telegram}"
 TELEGRAM_ALLOWED_USER_IDS="${TELEGRAM_ALLOWED_USER_IDS:-}"
 
@@ -80,7 +80,6 @@ tmux new-session -d -s "$SESSION" -c "$WORKSPACE" \
   -e TELEGRAM_WEBHOOK_PORT="$TELEGRAM_WEBHOOK_PORT" \
   -e TELEGRAM_WEBHOOK_TOKEN="$TELEGRAM_WEBHOOK_TOKEN" \
   -e GROQ_API_KEY="$GROQ_API_KEY" \
-  -e CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
   -e PATH="$HOME/.local/bin:$BUN_BIN_DIR:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   "$CLAUDE_BIN" \
     --dangerously-skip-permissions \
@@ -92,6 +91,17 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
   if echo "$PANE" | grep -q "Listening for channel"; then
     echo "[start-agent] $AGENT listening (webhook :$TELEGRAM_WEBHOOK_PORT)"
     exit 0
+  fi
+  # Стоит на экране логина — ~/.claude/.credentials.json нет/просрочен. Токен
+  # из окружения тут не поможет (TUI его не проверяет, см. install.sh), и
+  # 30с-таймаут ниже дал бы неинформативный WARNING — watchdog.sh тихо крутил
+  # бы рестарты (StartLimitIntervalSec=120, StartLimitBurst=5), пока это не
+  # исправят вручную. Фейлим сразу с понятной причиной.
+  if echo "$PANE" | grep -qE "Browser didn't open|Use the url below to sign in"; then
+    echo "[start-agent] ERROR: $AGENT застрял на экране логина — нет ~/.claude/.credentials.json (или просрочен)." >&2
+    echo "  Исправьте один раз: claude --dangerously-skip-permissions (войдите по ссылке, затем /exit), затем перезапустите сервис." >&2
+    tmux kill-session -t "$SESSION" 2>/dev/null || true
+    exit 1
   fi
   if echo "$PANE" | grep -q "I am using this for local development"; then
     tmux send-keys -t "$SESSION" Enter

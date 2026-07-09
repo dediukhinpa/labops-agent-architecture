@@ -55,11 +55,28 @@ if grep -qE '^ask +PRIMARY_MODEL' skills/create-agent/new-agent.sh \
 else
   bad "new-agent.sh не спрашивает/не пробрасывает PRIMARY_MODEL в скаффолдер"
 fi
-# 4c. учтён шаг подключения модели (subscription login — claude setup-token)
-if grep -rqE 'setup-token' install.sh skills/create-agent/new-agent.sh; then
-  ok "учтён шаг авторизации Claude Code (setup-token)"
+# 4c. учтён шаг подключения модели (subscription login — реальный вход,
+# ~/.claude/.credentials.json — НЕ claude setup-token/CLAUDE_CODE_OAUTH_TOKEN:
+# та авторизует только headless claude -p, персистентная TUI-сессия агента
+# (start-agent.sh) её не читает — см. install.sh для деталей)
+if grep -qE '\.claude/\.credentials\.json' install.sh; then
+  ok "учтён шаг авторизации Claude Code (интерактивный вход, credentials.json)"
 else
-  bad "нет шага подключения модели — headless-агент не достучится до модели"
+  bad "нет шага подключения модели — TUI-сессия агента не достучится до модели"
+fi
+# 4d. headless claude -p / claude setup-token НЕ используются — весь Claude-трафик
+# должен оставаться в подписке (SDK-credit billing rule), см. CLAUDE.md.
+# Комментарии, которые объясняют этот запрет (и упоминают запрещённые команды
+# как текст), не считаются — исключаем строки, где это первый непробельный
+# символ после file:line: это "#".
+HEADLESS_HITS="$(grep -rnE 'claude[[:space:]]+setup-token|claude[[:space:]].*[[:space:]]-p([[:space:]]|"|$)|claude[[:space:]]+--print' \
+  install.sh skills/create-agent/new-agent.sh orchestration/*.sh 2>/dev/null \
+  | grep -vE ':[0-9]+:[[:space:]]*#')"
+if [ -n "$HEADLESS_HITS" ]; then
+  bad "найден headless claude -p / claude setup-token — бьёт по отдельному SDK-credit биллингу:"
+  echo "$HEADLESS_HITS" | sed 's/^/    /'
+else
+  ok "headless claude -p / claude setup-token нигде не используются"
 fi
 
 echo "── 5. Watchdog-алерты оператору (lib/notify.sh) ──"

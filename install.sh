@@ -20,14 +20,14 @@
 #
 # Использование:
 #   ./install.sh              # ОДНА команда: деплой + клонирование siblings + self-test +
-#                             # авторизация Claude Code (claude setup-token, если ещё не
-#                             # входили) + создание Developer (интерактивно). Если siblings
-#                             # ещё не установлены их собственными install.sh — агент
-#                             # стартует в деградированном режиме, см. README → Quickstart.
+#                             # авторизация Claude Code (реальный вход в браузере, если
+#                             # ещё не входили) + создание Developer (интерактивно). Если
+#                             # siblings ещё не установлены их собственными install.sh —
+#                             # агент стартует в деградированном режиме, см. README → Quickstart.
 #   ./install.sh --test-only  # только self-test
 #   ./install.sh --no-agent   # подготовить + склонировать siblings, но авторизацию и
 #                             # агента не выполнять (для ручного/отложенного запуска:
-#                             #  claude setup-token && bash skills/create-agent/new-agent.sh)
+#                             #  claude --dangerously-skip-permissions && bash skills/create-agent/new-agent.sh)
 #
 # Env overrides:
 #   GITHUB_TOKEN=ghp_xxx      # нужен на чистом VPS для клонирования приватных labops-*
@@ -160,20 +160,6 @@ SUDOERS
       chown "$AGENT_OS_USER":"$AGENT_OS_USER" "$BASHRC"
       ok "PATH для ~/.local/bin дописан в $BASHRC"
     fi
-    # claude setup-token сохраняет токен в файл (shared/secrets), а не в
-    # ~/.claude/.credentials.json — сам claude его не подхватывает без
-    # CLAUDE_CODE_OAUTH_TOKEN в окружении. Без этой строки простой
-    # интерактивный `claude` (su -/ssh) снова просит войти, хотя токен уже
-    # есть на диске. Проверка — во время самого логина (файла может ещё не
-    # быть на момент дозаписи в .bashrc), поэтому кладём live-check, а не
-    # готовое значение.
-    TOKEN_LINE='[ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -f "$HOME/.claude-lab/shared/secrets/claude-oauth-token" ] && export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$HOME/.claude-lab/shared/secrets/claude-oauth-token")"'
-    if ! grep -qsF 'claude-oauth-token' "$BASHRC"; then
-      printf '\n# labops-agent-architecture: подхватить сохранённый claude setup-token\n%s\n' "$TOKEN_LINE" >> "$BASHRC"
-      chown "$AGENT_OS_USER":"$AGENT_OS_USER" "$BASHRC"
-      ok "CLAUDE_CODE_OAUTH_TOKEN автоподхват дописан в $BASHRC"
-    fi
-
     DEST_REPO="$NEW_HOME/$(basename "$REPO_DIR")"
     if [ "$REPO_DIR" != "$DEST_REPO" ]; then
       # Пересинхронизируем код в копию под отдельным пользователем при
@@ -287,23 +273,6 @@ else
   TG=""
 fi
 
-# ── Соседние репозитории склонированы, но НЕ установлены ──────────
-# Каждый ставится своим install.sh отдельной командой оператора:
-if [ -n "$TG" ]; then
-  say "labops-tg-plugin склонирован ($TG) — установите отдельной командой:"
-  echo "    cd $TG && ./install.sh"
-fi
-
-if [ -n "$SB" ]; then
-  say "labops-second-brain склонирован ($SB) — root-провижининг (Postgres+pgvector, systemd, ~1.3ГБ модель embeddings). Установите одним из двух способов:"
-  echo "    Вариант 1 — вручную:"
-  echo "      sudo bash $SB/scripts/install.sh"
-  echo "    Вариант 2 — отдать Claude Code агенту (спросит подтверждение на разрушительных шагах):"
-  echo "      cd $SB && claude"
-  echo "      # в сессии: «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,"
-  echo "      #            Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»"
-fi
-
 fi  # [ "$MODE" != "test" ]
 
 # скрипты должны быть исполняемыми
@@ -319,7 +288,7 @@ bash "$REPO_DIR/test.sh" || die "self-test провален — установк
 # ── 6. Первый агент — Developer ──────────────────────────────────
 if [ "$MODE" = "prep" ]; then
   say "Подготовка завершена (--no-agent). Чтобы создать первого агента:"
-  echo "    claude setup-token   # один раз, подписка Max/Pro (если ещё не входили)"
+  echo "    claude --dangerously-skip-permissions   # один раз, войдите в браузере, затем /exit"
   echo "    bash skills/create-agent/new-agent.sh"
   exit 0
 fi
@@ -330,42 +299,27 @@ echo "  своим скиллом create-agent. Сейчас проведём е
 echo
 
 # Авторизация Claude Code — нужна ДО создания агента (иначе агент не достучится
-# до модели). "claude setup-token" НЕ пишет ~/.claude/.credentials.json — он
-# печатает долгоживущий OAuth-токен ОДИН РАЗ и просит сохранить его самому
-# через "export CLAUDE_CODE_OAUTH_TOKEN=...". Храним его в shared/secrets —
-# тем же способом, что и остальные секреты агентов (GROQ, Telegram) — чтобы
-# не спрашивать вход заново на каждом запуске/для каждого нового агента.
-CLAUDE_TOKEN_FILE="$LAB_DIR/shared/secrets/claude-oauth-token"
-if [ -f "$CLAUDE_TOKEN_FILE" ]; then
-  export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$CLAUDE_TOKEN_FILE")"
-  ok "Claude Code уже авторизован (токен из $CLAUDE_TOKEN_FILE)"
-elif [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
-  mkdir -p "$(dirname "$CLAUDE_TOKEN_FILE")"
-  umask 077
-  printf '%s' "$CLAUDE_CODE_OAUTH_TOKEN" > "$CLAUDE_TOKEN_FILE"
-  chmod 600 "$CLAUDE_TOKEN_FILE"
-  ok "Claude Code уже авторизован (CLAUDE_CODE_OAUTH_TOKEN из окружения, сохранён в $CLAUDE_TOKEN_FILE)"
+# до модели). Все агенты этого пользователя запускаются как персистентная TUI-
+# сессия (orchestration/start-agent.sh: "claude --dangerously-skip-permissions",
+# БЕЗ -p) — а не headless. TUI-сессия проверяет ТОЛЬКО ~/.claude/.credentials.json
+# и не читает CLAUDE_CODE_OAUTH_TOKEN вообще (подтверждено эмпирически: с
+# валидным токеном в окружении "claude -p" отвечает, а голый "claude
+# --dangerously-skip-permissions" всё равно показывает экран логина). Поэтому
+# headless-путь ("claude setup-token" + CLAUDE_CODE_OAUTH_TOKEN) не используется
+# нигде в этой архитектуре — единственная авторизация ниже. Файл — на уровне
+# $HOME, не на уровне агента: все агенты этого пользователя используют одну и
+# ту же сессию, входить нужно один раз на пользователя, не на агента.
+if [ -f "$HOME/.claude/.credentials.json" ]; then
+  ok "Claude Code уже авторизован (\$HOME/.claude/.credentials.json)"
 else
-  say "Авторизация Claude Code (подписка Max/Pro)"
-  echo "  Сейчас запустится 'claude setup-token' — войдите один раз."
-  echo "  В конце он покажет:"
-  echo "    Your OAuth token (valid for N ...):"
-  echo "      sk-ant-..."
-  echo "  Это единственный момент, когда токен виден — скопируйте именно строку"
-  echo "  sk-ant-... (строка 'export CLAUDE_CODE_OAUTH_TOKEN=<token>' ниже —"
-  echo "  просто подсказка с буквальным <token>, самого значения там нет)."
-  claude setup-token || die "авторизация не завершена — перезапустите ./install.sh, когда будете готовы войти."
-  TOKEN_VAL=""
-  while [ -z "$TOKEN_VAL" ]; do
-    read -rp "  Вставьте токен: " TOKEN_VAL
-    [ -z "$TOKEN_VAL" ] && warn "токен не может быть пустым"
-  done
-  mkdir -p "$(dirname "$CLAUDE_TOKEN_FILE")"
-  umask 077
-  printf '%s' "$TOKEN_VAL" > "$CLAUDE_TOKEN_FILE"
-  chmod 600 "$CLAUDE_TOKEN_FILE"
-  export CLAUDE_CODE_OAUTH_TOKEN="$TOKEN_VAL"
-  ok "токен сохранён в $CLAUDE_TOKEN_FILE"
+  say "Вход в Claude Code (подписка Max/Pro)"
+  echo "  Сейчас откроется claude — войдите по ссылке в браузере, затем"
+  echo "  наберите /exit (или Ctrl+C), чтобы вернуться в этот установщик."
+  read -rp "  Нажмите Enter, чтобы продолжить... " _
+  claude --dangerously-skip-permissions || true
+  [ -f "$HOME/.claude/.credentials.json" ] \
+    || die "вход не завершён (\$HOME/.claude/.credentials.json всё ещё нет) — перезапустите ./install.sh, когда будете готовы войти."
+  ok "Claude Code авторизован (\$HOME/.claude/.credentials.json)"
 fi
 
 [ -n "$TG" ] && [ ! -d "$TG/plugin/node_modules" ] && \
