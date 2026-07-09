@@ -27,6 +27,11 @@ REPO_DIR="$(cd "$SKILL_DIR/../.." && pwd)"
 LAB_DIR="${CLAUDE_LAB:-$HOME/.claude-lab}"
 AGENT_TEMPLATE="$REPO_DIR/agent-template"
 ORCH_DIR="$REPO_DIR/orchestration"
+# Нативный claude ставится в ~/.local/bin, но PATH туда правится только в
+# ~/.bashrc — при запуске не-login шеллом (sudo -u ... -H bash ...) это не
+# подхватывается. Подмешиваем явно, чтобы claude находился и здесь, и в
+# smoke-тесте (7d) ниже.
+export PATH="$HOME/.local/bin:$PATH"
 
 C='\033[0;36m'; G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; N='\033[0m'
 say()  { printf "\n${C}▶ %s${N}\n" "$*"; }

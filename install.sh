@@ -149,6 +149,18 @@ SUDOERS
     fi
 
     NEW_HOME="$(getent passwd "$AGENT_OS_USER" | cut -d: -f6)"
+
+    # Нативный claude ставится в ~/.local/bin, но сам установщик правит PATH
+    # только в ~/.bashrc — при интерактивном входе (su - / ssh) claude не
+    # найдётся, пока это не сделано. Дописываем один раз, идемпотентно.
+    BASHRC="$NEW_HOME/.bashrc"
+    PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
+    if ! grep -qsF '.local/bin' "$BASHRC"; then
+      printf '\n# labops-agent-architecture: claude (нативный install) живёт тут\n%s\n' "$PATH_LINE" >> "$BASHRC"
+      chown "$AGENT_OS_USER":"$AGENT_OS_USER" "$BASHRC"
+      ok "PATH для ~/.local/bin дописан в $BASHRC"
+    fi
+
     DEST_REPO="$NEW_HOME/$(basename "$REPO_DIR")"
     if [ "$REPO_DIR" != "$DEST_REPO" ]; then
       # Пересинхронизируем код в копию под отдельным пользователем при
@@ -178,10 +190,16 @@ LAB_DIR="${CLAUDE_LAB:-$HOME/.claude-lab}"
 
 # ── 3. Claude Code и остальное окружение ─────────────────────────
 say "3. Claude Code и окружение"
+# Нативный установщик claude.ai кладёт бинарник в ~/.local/bin и правит PATH
+# только в ~/.bashrc — а install.sh запускается не-login шеллом (sudo -u ... -H
+# bash install.sh), rc-файлы не подгружаются. Подмешиваем каталог в PATH ЗАРАНЕЕ,
+# иначе уже стоящий claude не находится и install.sh на каждом запуске зря
+# дёргает curl | bash (сам установщик идемпотентен и просто ничего не ставит
+# повторно, но это лишняя сетевая операция и шумное предупреждение).
+export PATH="$HOME/.local/bin:$PATH"
 if ! command -v claude >/dev/null 2>&1; then
   warn "claude не найден — устанавливаю (curl -fsSL https://claude.ai/install.sh | bash), без Node.js"
   curl -fsSL https://claude.ai/install.sh | bash
-  export PATH="$HOME/.local/bin:$PATH"
 fi
 if command -v claude >/dev/null 2>&1; then
   ok "claude найден"
