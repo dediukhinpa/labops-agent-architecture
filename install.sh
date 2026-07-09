@@ -119,6 +119,35 @@ if [ "$(id -u)" -eq 0 ] && [ "$MODE" != "test" ] && [ "${SKIP_USER_SETUP:-0}" !=
       echo "  Задайте ему пароль (нужен вам для su/ssh-входа — самому агенту он не нужен):"
       passwd "$AGENT_OS_USER" || warn "пароль не задан — задайте позже: passwd $AGENT_OS_USER"
     fi
+
+    # Узко-scoped NOPASSWD sudo — ТОЛЬКО управление собственными
+    # claude-agent-*.service юнитами (cp юнита в /etc/systemd/system,
+    # systemctl daemon-reload, systemctl enable --now claude-agent-*).
+    # Больше никаких sudo-прав пользователь не получает: сам агент внутри
+    # Claude Code всё равно работает без sudo (deny-правило в settings),
+    # это нужно только new-agent.sh для автостарта systemd-юнита без
+    # ручного вмешательства оператора на каждом запуске.
+    if command -v visudo >/dev/null 2>&1; then
+      SUDOERS_FILE="/etc/sudoers.d/labops-agent-systemd-$AGENT_OS_USER"
+      SUDOERS_TMP="$(mktemp)"
+      cat > "$SUDOERS_TMP" <<SUDOERS
+# Автосоздано labops-agent-architecture/install.sh. Разрешает $AGENT_OS_USER
+# без пароля устанавливать и включать ТОЛЬКО claude-agent-*.service юниты.
+$AGENT_OS_USER ALL=(root) NOPASSWD: /usr/bin/cp /tmp/claude-agent-*.service /etc/systemd/system/claude-agent-*.service
+$AGENT_OS_USER ALL=(root) NOPASSWD: /usr/bin/systemctl daemon-reload
+$AGENT_OS_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now claude-agent-*.service
+SUDOERS
+      if visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
+        install -m 440 "$SUDOERS_TMP" "$SUDOERS_FILE"
+        ok "scoped sudo для $AGENT_OS_USER: только systemd claude-agent-* юниты"
+      else
+        warn "sudoers-файл для $AGENT_OS_USER не прошёл проверку синтаксиса — автостарт юнита придётся включать вручную"
+      fi
+      rm -f "$SUDOERS_TMP"
+    else
+      warn "нет visudo — scoped sudo для автостарта не выдан, юнит придётся ставить вручную"
+    fi
+
     NEW_HOME="$(getent passwd "$AGENT_OS_USER" | cut -d: -f6)"
     DEST_REPO="$NEW_HOME/$(basename "$REPO_DIR")"
     if [ "$REPO_DIR" != "$DEST_REPO" ]; then

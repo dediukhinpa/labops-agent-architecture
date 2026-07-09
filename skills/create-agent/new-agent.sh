@@ -209,8 +209,17 @@ if [ "$ENABLE_VOICE" = "1" ]; then
   if [ -f "$GROQ_FILE" ] || [ -n "${GROQ_API_KEY:-}" ]; then
     ok "groq-voice: ключ найден — голосовые будут транскрибироваться"
   else
-    warn "нет GROQ_API_KEY (положите в $GROQ_FILE) — голос подключится позже, текст работает сразу"
-    DEGRADED+=("голос выключен (нет GROQ_API_KEY) — голосовые не транскрибируются, текст работает")
+    ask GROQ_API_KEY "Groq API key для голосовых (console.groq.com/keys, пусто — пропустить)" ""
+    if [ -n "${GROQ_API_KEY:-}" ]; then
+      mkdir -p "$(dirname "$GROQ_FILE")"
+      umask 077
+      printf '%s' "$GROQ_API_KEY" > "$GROQ_FILE"
+      chmod 600 "$GROQ_FILE"
+      ok "groq-voice: ключ сохранён в $GROQ_FILE — голосовые будут транскрибироваться"
+    else
+      warn "нет GROQ_API_KEY — голос подключится позже, текст работает сразу"
+      DEGRADED+=("голос выключен (нет GROQ_API_KEY) — голосовые не транскрибируются, текст работает; положите ключ в $GROQ_FILE позже")
+    fi
   fi
 fi
 
@@ -223,14 +232,19 @@ if [ "$AUTOSTART" = "1" ] && [ -f "$UNIT_TMPL" ]; then
   sed -e "s|__AGENT__|$AGENT_ID|g" -e "s|__USER__|$(id -un)|g" \
       -e "s|__ORCH__|$ORCH_DIR|g" -e "s|__LAB__|$LAB_DIR|g" "$UNIT_TMPL" > "$UNIT"
   mkdir -p "$LAB_DIR/$AGENT_ID/logs"
-  if command -v systemctl >/dev/null && sudo -n true 2>/dev/null; then
-    sudo cp "$UNIT" "/etc/systemd/system/claude-agent-$AGENT_ID.service"
-    sudo systemctl daemon-reload
-    sudo systemctl enable --now "claude-agent-$AGENT_ID.service" && ok "юнит claude-agent-$AGENT_ID активен"
+  # install.sh выдаёт агент-пользователю узко-scoped NOPASSWD sudo ТОЛЬКО на эти
+  # три команды (cp юнита + systemctl daemon-reload/enable --now claude-agent-*).
+  # "sudo -n true" тут не подходит как проверка — сам "true" не входит в
+  # разрешённый список команд, поэтому пробуем реальные команды напрямую.
+  if command -v systemctl >/dev/null 2>&1 \
+     && sudo -n cp "$UNIT" "/etc/systemd/system/claude-agent-$AGENT_ID.service" 2>/dev/null \
+     && sudo -n systemctl daemon-reload 2>/dev/null \
+     && sudo -n systemctl enable --now "claude-agent-$AGENT_ID.service" 2>/dev/null; then
+    ok "юнит claude-agent-$AGENT_ID активен"
   else
-    warn "нет sudo/systemctl — юнит сгенерирован в $UNIT. Установите вручную:"
+    warn "нет scoped sudo для systemd claude-agent-* (или нет systemctl) — юнит сгенерирован в $UNIT. Установите вручную:"
     echo "    sudo cp $UNIT /etc/systemd/system/ && sudo systemctl enable --now claude-agent-$AGENT_ID"
-    DEGRADED+=("автостарт не включён (нет sudo/systemd) — агент не поднимется сам после перезагрузки; юнит в $UNIT")
+    DEGRADED+=("автостарт не включён — агент не поднимется сам после перезагрузки; юнит в $UNIT")
   fi
 elif ! [ -f "$UNIT_TMPL" ]; then
   warn "шаблон юнита не найден ($UNIT_TMPL) — автостарт пропущен"
