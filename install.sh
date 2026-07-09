@@ -324,41 +324,46 @@ if creds_valid; then
   ok "Claude Code уже авторизован (\$HOME/.claude/.credentials.json)"
 else
   say "Вход в Claude Code (подписка Max/Pro)"
-  echo "  Откроется claude в tmux-сессии installer-login — войдите по ссылке"
-  echo "  в браузере. Установщик сам обнаружит успешный вход и завершит"
-  echo "  сессию — руками жать /exit не нужно."
+  echo "  Сейчас подключу вас к сессии логина в этом же терминале —"
+  echo "  войдите по ссылке в браузере. Как только вход завершится,"
+  echo "  установщик сам это обнаружит и закроет сессию — руками"
+  echo "  жать /exit не нужно."
   read -rp "  Нажмите Enter, чтобы продолжить... " _
 
   LOGIN_SESSION="installer-login-$$"
   tmux new-session -d -s "$LOGIN_SESSION" \
     "claude --dangerously-skip-permissions; sleep 2"
 
-  echo "  Подключиться к сессии в отдельном терминале: tmux attach -t $LOGIN_SESSION"
-  echo "  (Ctrl+B, D — отсоединиться вручную, не убивая сессию)"
+  # Фоновый вотчер: параллельно с тем, что пользователь сидит внутри
+  # tmux attach (см. ниже), следит за появлением валидного токена и сам
+  # завершает сессию логина — пользователю не нужен второй терминал.
+  (
+    LOGIN_TIMEOUT=300
+    LOGIN_WAITED=0
+    while ! creds_valid; do
+      if ! tmux has-session -t "$LOGIN_SESSION" 2>/dev/null; then
+        exit 0
+      fi
+      if [ "$LOGIN_WAITED" -ge "$LOGIN_TIMEOUT" ]; then
+        exit 0
+      fi
+      sleep 3
+      LOGIN_WAITED=$((LOGIN_WAITED + 3))
+    done
+    tmux send-keys -t "$LOGIN_SESSION" "/exit" Enter
+    sleep 2
+    tmux kill-session -t "$LOGIN_SESSION" 2>/dev/null || true
+  ) &
+  LOGIN_WATCHER_PID=$!
 
-  LOGIN_TIMEOUT=300
-  LOGIN_WAITED=0
-  while ! creds_valid; do
-    if ! tmux has-session -t "$LOGIN_SESSION" 2>/dev/null; then
-      break
-    fi
-    if [ "$LOGIN_WAITED" -ge "$LOGIN_TIMEOUT" ]; then
-      echo "  Таймаут ожидания входа (${LOGIN_TIMEOUT}s) — сессия $LOGIN_SESSION оставлена открытой."
-      break
-    fi
-    sleep 3
-    LOGIN_WAITED=$((LOGIN_WAITED + 3))
-  done
+  tmux attach -t "$LOGIN_SESSION" 2>/dev/null || true
+  wait "$LOGIN_WATCHER_PID" 2>/dev/null || true
 
   if creds_valid; then
-    if tmux has-session -t "$LOGIN_SESSION" 2>/dev/null; then
-      tmux send-keys -t "$LOGIN_SESSION" "/exit" Enter
-      sleep 2
-      tmux kill-session -t "$LOGIN_SESSION" 2>/dev/null || true
-    fi
-    ok "Claude Code авторизован (\$HOME/.claude/.credentials.json), tmux-сессия закрыта автоматически"
+    tmux kill-session -t "$LOGIN_SESSION" 2>/dev/null || true
+    ok "Claude Code авторизован (\$HOME/.claude/.credentials.json)"
   else
-    die "вход не завершён (валидный accessToken в \$HOME/.claude/.credentials.json так и не появился) — проверьте сессию 'tmux attach -t $LOGIN_SESSION' и перезапустите ./install.sh."
+    die "вход не завершён (валидный accessToken в \$HOME/.claude/.credentials.json так и не появился) — перезапустите ./install.sh, когда будете готовы войти."
   fi
 fi
 
