@@ -180,7 +180,12 @@ SUDOERS
       chown -R "$AGENT_OS_USER":"$AGENT_OS_USER" "$DEST_REPO"
     fi
     ok "продолжаю установку от имени $AGENT_OS_USER"
-    exec sudo -u "$AGENT_OS_USER" -H bash "$DEST_REPO/install.sh" "$@"
+    # -E сохраняет окружение (REUSE_EXISTING=1, SKIP_TG_PLUGIN=0 и т.п. —
+    # без него sudo молча сбрасывает все такие "флаги", и они не доходят до
+    # реального install.sh под labops). Мы root — sudo -E от root разрешён
+    # всегда, независимо от sudoers env_keep. -H всё равно ставит HOME
+    # правильно (домашняя папка labops), а не окружение вызывающего root.
+    exec sudo -E -u "$AGENT_OS_USER" -H bash "$DEST_REPO/install.sh" "$@"
   else
     warn "продолжаю от root — НЕ рекомендуется для постоянной эксплуатации агентов"
   fi
