@@ -309,17 +309,57 @@ echo
 # нигде в этой архитектуре — единственная авторизация ниже. Файл — на уровне
 # $HOME, не на уровне агента: все агенты этого пользователя используют одну и
 # ту же сессию, входить нужно один раз на пользователя, не на агента.
-if [ -f "$HOME/.claude/.credentials.json" ]; then
+# Проверяет не просто наличие файла, а что в нём реально лежит непустой
+# accessToken — claude может создать файл раньше, чем допишет в него токен
+# (или оставить пустой {} при прерванном логине), простой "-f" это не ловит.
+creds_valid() {
+  local f="$HOME/.claude/.credentials.json"
+  [ -s "$f" ] || return 1
+  local token
+  token="$(jq -r '.claudeAiOauth.accessToken // empty' "$f" 2>/dev/null)" || return 1
+  [ -n "$token" ]
+}
+
+if creds_valid; then
   ok "Claude Code уже авторизован (\$HOME/.claude/.credentials.json)"
 else
   say "Вход в Claude Code (подписка Max/Pro)"
-  echo "  Сейчас откроется claude — войдите по ссылке в браузере, затем"
-  echo "  наберите /exit (или Ctrl+C), чтобы вернуться в этот установщик."
+  echo "  Откроется claude в tmux-сессии installer-login — войдите по ссылке"
+  echo "  в браузере. Установщик сам обнаружит успешный вход и завершит"
+  echo "  сессию — руками жать /exit не нужно."
   read -rp "  Нажмите Enter, чтобы продолжить... " _
-  claude --dangerously-skip-permissions || true
-  [ -f "$HOME/.claude/.credentials.json" ] \
-    || die "вход не завершён (\$HOME/.claude/.credentials.json всё ещё нет) — перезапустите ./install.sh, когда будете готовы войти."
-  ok "Claude Code авторизован (\$HOME/.claude/.credentials.json)"
+
+  LOGIN_SESSION="installer-login-$$"
+  tmux new-session -d -s "$LOGIN_SESSION" \
+    "claude --dangerously-skip-permissions; sleep 2"
+
+  echo "  Подключиться к сессии в отдельном терминале: tmux attach -t $LOGIN_SESSION"
+  echo "  (Ctrl+B, D — отсоединиться вручную, не убивая сессию)"
+
+  LOGIN_TIMEOUT=300
+  LOGIN_WAITED=0
+  while ! creds_valid; do
+    if ! tmux has-session -t "$LOGIN_SESSION" 2>/dev/null; then
+      break
+    fi
+    if [ "$LOGIN_WAITED" -ge "$LOGIN_TIMEOUT" ]; then
+      echo "  Таймаут ожидания входа (${LOGIN_TIMEOUT}s) — сессия $LOGIN_SESSION оставлена открытой."
+      break
+    fi
+    sleep 3
+    LOGIN_WAITED=$((LOGIN_WAITED + 3))
+  done
+
+  if creds_valid; then
+    if tmux has-session -t "$LOGIN_SESSION" 2>/dev/null; then
+      tmux send-keys -t "$LOGIN_SESSION" "/exit" Enter
+      sleep 2
+      tmux kill-session -t "$LOGIN_SESSION" 2>/dev/null || true
+    fi
+    ok "Claude Code авторизован (\$HOME/.claude/.credentials.json), tmux-сессия закрыта автоматически"
+  else
+    die "вход не завершён (валидный accessToken в \$HOME/.claude/.credentials.json так и не появился) — проверьте сессию 'tmux attach -t $LOGIN_SESSION' и перезапустите ./install.sh."
+  fi
 fi
 
 [ -n "$TG" ] && [ ! -d "$TG/plugin/node_modules" ] && \
