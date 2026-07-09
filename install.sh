@@ -122,7 +122,20 @@ if [ "$(id -u)" -eq 0 ] && [ "$MODE" != "test" ] && [ "${SKIP_USER_SETUP:-0}" !=
     NEW_HOME="$(getent passwd "$AGENT_OS_USER" | cut -d: -f6)"
     DEST_REPO="$NEW_HOME/$(basename "$REPO_DIR")"
     if [ "$REPO_DIR" != "$DEST_REPO" ]; then
-      [ -d "$DEST_REPO/.git" ] || cp -a "$REPO_DIR" "$DEST_REPO"
+      # Пересинхронизируем код в копию под отдельным пользователем при
+      # КАЖДОМ запуске — копируем во временную папку рядом и атомарно
+      # подменяем ею DEST_REPO. Раньше копия делалась только один раз
+      # ("[ -d "$DEST_REPO/.git" ] || cp -a ..."): Ctrl+C посреди cp -a
+      # оставлял битый .git прямо на месте DEST_REPO, и повторные запуски
+      # install.sh тихо исполняли эту повреждённую/устаревшую копию,
+      # полностью игнорируя обновления в $REPO_DIR (git pull там ни на
+      # что не влиял).
+      TMP_DEST="$(mktemp -d "$NEW_HOME/.$(basename "$REPO_DIR").sync.XXXXXX")"
+      trap 'rm -rf "$TMP_DEST"' EXIT
+      cp -a "$REPO_DIR/." "$TMP_DEST"
+      rm -rf "$DEST_REPO"
+      mv "$TMP_DEST" "$DEST_REPO"
+      trap - EXIT
       chown -R "$AGENT_OS_USER":"$AGENT_OS_USER" "$DEST_REPO"
     fi
     ok "продолжаю установку от имени $AGENT_OS_USER"
