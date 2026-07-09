@@ -35,7 +35,7 @@ launching Claude Code, or you can export them in your shell profile.
 `MCP_HOST` is the host/IP only (no protocol or port); the `SECOND_BRAIN_*_URL`
 vars are the actual per-service endpoint URLs (memory `:5001`, memory_router
 `:5002`, agent_router `:5000` by default) and can be overridden directly for
-Caddy-fronted remote deployments.
+remote deployments fronted by your own reverse proxy.
 
 ## Wiring
 

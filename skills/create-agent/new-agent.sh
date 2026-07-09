@@ -15,7 +15,7 @@
 #   AGENT_NAME AGENT_ROLE AGENT_ROLE_DESCRIPTION CHARACTER_TRAITS
 #   PRIMARY_MODEL OPERATOR_NAME OPERATOR_ADDRESS TIMEZONE LANGUAGE
 #   MCP_HOST (default: 127.0.0.1, colocated) AGENT_SCOPES
-#   SECOND_BRAIN_MEMORY_URL/_MEMORY_ROUTER_URL/_AGENT_ROUTER_URL (override for Caddy/remote)
+#   SECOND_BRAIN_MEMORY_URL/_MEMORY_ROUTER_URL/_AGENT_ROUTER_URL (override for remote/reverse-proxy)
 #   TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_USER_IDS
 #   ENABLE_VOICE(=1) AUTOSTART(=1)
 #   SECOND_BRAIN_DIR (для авто-выдачи токена)  TG_PLUGIN_DIR  CLAUDE_LAB
@@ -79,9 +79,9 @@ fi
 ask PRIMARY_MODEL    "Модель Anthropic — opus / sonnet / haiku (Developer рекоменд.: opus = Opus 4.8)" "opus"
 ask LANGUAGE         "Язык ответов" "Russian"
 ask OPERATOR_ADDRESS "Как обращаться к вам" "Boss"
-# Второй мозг всегда колоцирован на этом же VPS, без Caddy — прямые
+# Второй мозг всегда колоцирован на этом же VPS, без reverse proxy — прямые
 # host:port URL на дефолтных портах, без вопроса. Переопределяется через
-# MCP_HOST (другой хост) или напрямую SECOND_BRAIN_*_URL (напр. Caddy+домен).
+# MCP_HOST (другой хост) или напрямую SECOND_BRAIN_*_URL (напр. свой домен+proxy).
 : "${MCP_HOST:=127.0.0.1}"
 MCP_HOST="${MCP_HOST%/}"
 : "${MCP_MEMORY_PORT:=5001}"

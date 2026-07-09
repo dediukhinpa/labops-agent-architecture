@@ -439,7 +439,7 @@ bash install.sh --test-only
 | Variable | Where | Purpose |
 |---|---|---|
 | `MCP_HOST` | `agent.env` | host/IP only, no protocol or port (e.g. `127.0.0.1`); used to derive the three `SECOND_BRAIN_*_URL` defaults |
-| `SECOND_BRAIN_MEMORY_URL` | `.mcp.json`, `agent.env` | full URL to memory `/mcp` (default `http://${MCP_HOST}:5001/mcp`); override for Caddy-fronted setups |
+| `SECOND_BRAIN_MEMORY_URL` | `.mcp.json`, `agent.env` | full URL to memory `/mcp` (default `http://${MCP_HOST}:5001/mcp`); override if fronted by your own reverse proxy |
 | `SECOND_BRAIN_MEMORY_ROUTER_URL` | `.mcp.json`, `agent.env` | full URL to memory_router `/mcp` (default `http://${MCP_HOST}:5002/mcp`) |
 | `SECOND_BRAIN_AGENT_ROUTER_URL` | `.mcp.json`, `agent.env` | full URL to agent_router `/mcp` (default `http://${MCP_HOST}:5000/mcp`) |
 | `AGENT_BEARER` | `.mcp.json` (chmod 600) | the agent's Bearer token for MCP (only `token_sha256` is stored in the DB) |

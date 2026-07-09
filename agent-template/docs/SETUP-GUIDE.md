@@ -3,7 +3,7 @@
 Step-by-step setup for an agent workspace wired to a shared second_brain MCP server.
 
 This is the "client-side" of the public-second_brain-agentos distro. The "server-side"
-(memory MCP, memory_router MCP, agent_router MCP, Postgres + pgvector, Caddy + TLS) is
+(memory MCP, memory_router MCP, agent_router MCP, Postgres + pgvector) is
 documented in [../docs/SERVER-SETUP.md](../docs/SERVER-SETUP.md) and installed
 via [../scripts/install-vps.sh](../scripts/install-vps.sh). You **must** have a
 running second_brain server (or know its `MCP_HOST` host/IP and have a Bearer token for
@@ -27,7 +27,7 @@ shared brain on each session start.
 - macOS or Linux with bash, `jq`, `python3`, `curl`, `git`
 - Claude Code CLI: `curl -fsSL https://claude.ai/install.sh | bash` (native installer, no Node.js needed)
 - second_brain server already deployed and reachable. You need:
-  - `MCP_HOST` — host/IP only, no protocol or port (e.g. `127.0.0.1` or `mcp.example.com`). The three per-service endpoint URLs (`SECOND_BRAIN_MEMORY_URL` on port 5001, `SECOND_BRAIN_MEMORY_ROUTER_URL` on port 5002, `SECOND_BRAIN_AGENT_ROUTER_URL` on port 5000) are derived automatically, or override them directly for a Caddy-fronted setup.
+  - `MCP_HOST` — host/IP only, no protocol or port (e.g. `127.0.0.1` or `mcp.example.com`). The three per-service endpoint URLs (`SECOND_BRAIN_MEMORY_URL` on port 5001, `SECOND_BRAIN_MEMORY_ROUTER_URL` on port 5002, `SECOND_BRAIN_AGENT_ROUTER_URL` on port 5000) are derived automatically, or override them directly if you front the server with your own reverse proxy.
   - Agent bearer token issued by
     [`../scripts/issue-agent-token.py`](../scripts/issue-agent-token.py) on the
     second_brain VPS

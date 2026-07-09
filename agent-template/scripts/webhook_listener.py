@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inter-agent webhook listener — reference implementation.
 
-Receives POST /webhook from second_brain swarm_mcp worker, verifies Bearer or HMAC
+Receives POST /webhook from second_brain agent_router_mcp worker, verifies Bearer or HMAC
 signature, writes payload to an inbox directory for the host runtime to pick up.
 
 See docs/INTER-AGENT-WEBHOOKS.md for the full architecture and how to wire

@@ -122,9 +122,9 @@ MCP_HOST="${MCP_HOST%/}"  # strip trailing slash
 prompt AGENT_BEARER          "Agent bearer token (issued by scripts/issue-agent-token.py)" "CHANGE_ME"
 prompt AGENT_SCOPES          "Agent scopes [decisions,external,knowledge,inbox]" "decisions,external,knowledge,inbox"
 
-# Direct per-service host:port URLs (no Caddy/reverse-proxy needed for the
+# Direct per-service host:port URLs (no reverse-proxy needed for the
 # default colocated setup). Override SECOND_BRAIN_*_URL directly for a
-# Caddy-fronted remote deployment (e.g. https://mcp.example.com/memory/mcp).
+# reverse-proxy-fronted remote deployment (e.g. https://mcp.example.com/memory/mcp).
 : "${MCP_MEMORY_PORT:=5001}"
 : "${MCP_MEMORY_ROUTER_PORT:=5002}"
 : "${MCP_AGENT_ROUTER_PORT:=5000}"

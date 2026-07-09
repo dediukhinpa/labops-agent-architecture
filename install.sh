@@ -217,7 +217,7 @@ if [ -n "$TG" ]; then
 fi
 
 if [ -n "$SB" ]; then
-  say "labops-second-brain склонирован ($SB) — root-провижининг (Postgres+pgvector, Caddy, systemd, ~1.3ГБ модель embeddings). Установите одним из двух способов:"
+  say "labops-second-brain склонирован ($SB) — root-провижининг (Postgres+pgvector, systemd, ~1.3ГБ модель embeddings). Установите одним из двух способов:"
   echo "    Вариант 1 — вручную:"
   echo "      sudo bash $SB/scripts/install.sh"
   echo "    Вариант 2 — отдать Claude Code агенту (спросит подтверждение на разрушительных шагах):"
