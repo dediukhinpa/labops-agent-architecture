@@ -126,22 +126,9 @@ cd labops-agent-architecture
 # Одна команда: зависимости + клонирование соседей + self-test +
 # авторизация (claude setup-token, если нужна) + создание Developer-агента
 bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
-
-# Соседей ставим сами, каждого из его репозитория — порядок не важен,
-# установщик/агент просто подскажут, чего ещё не хватает:
-cd ~/labops-tg-plugin && ./install.sh && cd -
-cd ~/labops-second-brain && sudo bash scripts/install.sh && cd -
-#    ...или отдаём labops-second-brain Claude Code агенту:
-#    cd ~/labops-second-brain && claude
-#    в сессии вставьте:
-#    «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,
-#     Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»
-
-# После установки рой расширяется самим Developer-агентом
-# (он вызывает скилл create-agent по просьбе Оператора)
 ```
 
-Если чего-то нет — установка честно перечислит, что **не** настроено (а не покажет ложный зелёный).
+Если чего-то нет — установка честно перечислит, что **не** настроено (а не покажет ложный зелёный). Дальше ставим `labops-tg-plugin` и `labops-second-brain` сами — ссылки на их Quickstart в шагах 2-3 выше.
 
 ---
 
@@ -431,20 +418,9 @@ cd labops-agent-architecture
 # Одна команда: зависимости + клонирование соседей (без установки) +
 # self-test + авторизация (claude setup-token, если нужна) + Developer-агент
 bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
-
-# Соседей ставим сами, каждого из его репозитория — порядок не важен,
-# установщик/агент просто подскажут, чего ещё не хватает:
-cd ~/labops-tg-plugin && ./install.sh && cd -
-cd ~/labops-second-brain && sudo bash scripts/install.sh && cd -
-#    ...или отдаём labops-second-brain Claude Code агенту:
-#    cd ~/labops-second-brain && claude
-#    в сессии вставьте:
-#    «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,
-#     Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»
-
-# После установки рой расширяется самим Developer-агентом
-# (он вызывает скилл create-agent по просьбе Оператора)
 ```
+
+Дальше соседей ставим сами, каждого из его репозитория — ссылки на их установку в шагах 2-3 «Быстрого старта» выше.
 
 Скаффолд одного воркспейса без полного развёртывания — через `agent-template/install.sh` (см. [`agent-template/README.md`](agent-template/README.md)).
 

@@ -124,17 +124,9 @@ cd labops-agent-architecture
 
 # One command: deps + clone siblings + self-test + sign-in (if needed) + Developer
 bash install.sh
-
-# Then install the siblings yourself, each from its own repo (see steps 2-3
-# above for links to their Quickstarts):
-cd ~/labops-tg-plugin && ./install.sh && cd -
-cd ~/labops-second-brain && sudo bash scripts/install.sh && cd -
-
-# After install, the swarm is grown by the Developer agent itself
-# (it invokes the create-agent skill at the Operator's request)
 ```
 
-If something is missing, the install honestly lists what is **not** configured (rather than showing a false green).
+If something is missing, the install honestly lists what is **not** configured (rather than showing a false green). Next, install `labops-tg-plugin` and `labops-second-brain` yourself — see steps 2-3 above for links to their own Quickstarts.
 
 ---
 
@@ -424,19 +416,9 @@ cd labops-agent-architecture
 # One command: deps + clone siblings (without installing) + self-test +
 # sign-in (claude setup-token, only if needed) + create the Developer agent
 bash install.sh   # model → identity → scaffold → bot → voice → token → systemd → smoke
-
-# Install the siblings yourself, each from its own repo — order doesn't
-# matter, the installer/agent just warn about what's still missing:
-cd ~/labops-tg-plugin && ./install.sh && cd -
-cd ~/labops-second-brain && sudo bash scripts/install.sh && cd -
-#    ...or hand labops-second-brain to a Claude Code agent instead:
-#    cd ~/labops-second-brain && claude
-#    then paste: "Прочитай и выполни инструкции из AGENT.md — разверни Second
-#    Brain, Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг."
-
-# After install, the swarm grows via the Developer agent itself
-# (it invokes the create-agent skill at the Operator's request)
 ```
+
+Then install the siblings yourself, each from its own repo — see Quickstart steps 2-3 above for links to their own install docs.
 
 Scaffolding a single workspace without a full deployment — via `agent-template/install.sh` (see [`agent-template/README.md`](agent-template/README.md)).
 
