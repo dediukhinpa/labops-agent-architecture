@@ -160,6 +160,19 @@ SUDOERS
       chown "$AGENT_OS_USER":"$AGENT_OS_USER" "$BASHRC"
       ok "PATH для ~/.local/bin дописан в $BASHRC"
     fi
+    # claude setup-token сохраняет токен в файл (shared/secrets), а не в
+    # ~/.claude/.credentials.json — сам claude его не подхватывает без
+    # CLAUDE_CODE_OAUTH_TOKEN в окружении. Без этой строки простой
+    # интерактивный `claude` (su -/ssh) снова просит войти, хотя токен уже
+    # есть на диске. Проверка — во время самого логина (файла может ещё не
+    # быть на момент дозаписи в .bashrc), поэтому кладём live-check, а не
+    # готовое значение.
+    TOKEN_LINE='[ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -f "$HOME/.claude-lab/shared/secrets/claude-oauth-token" ] && export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$HOME/.claude-lab/shared/secrets/claude-oauth-token")"'
+    if ! grep -qsF 'claude-oauth-token' "$BASHRC"; then
+      printf '\n# labops-agent-architecture: подхватить сохранённый claude setup-token\n%s\n' "$TOKEN_LINE" >> "$BASHRC"
+      chown "$AGENT_OS_USER":"$AGENT_OS_USER" "$BASHRC"
+      ok "CLAUDE_CODE_OAUTH_TOKEN автоподхват дописан в $BASHRC"
+    fi
 
     DEST_REPO="$NEW_HOME/$(basename "$REPO_DIR")"
     if [ "$REPO_DIR" != "$DEST_REPO" ]; then
