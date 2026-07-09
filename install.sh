@@ -330,9 +330,12 @@ elif [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
 else
   say "Авторизация Claude Code (подписка Max/Pro)"
   echo "  Сейчас запустится 'claude setup-token' — войдите один раз."
-  echo "  В конце он покажет строку вида 'export CLAUDE_CODE_OAUTH_TOKEN=<токен>' —"
-  echo "  это единственный момент, когда токен виден. Скопируйте сам <токен>"
-  echo "  (без \"export CLAUDE_CODE_OAUTH_TOKEN=\") и вставьте его в запрос ниже."
+  echo "  В конце он покажет:"
+  echo "    Your OAuth token (valid for N ...):"
+  echo "      sk-ant-token-..."
+  echo "  Это единственный момент, когда токен виден — скопируйте именно строку"
+  echo "  sk-ant-token-... (строка 'export CLAUDE_CODE_OAUTH_TOKEN=<token>' ниже —"
+  echo "  просто подсказка с буквальным <token>, самого значения там нет)."
   claude setup-token || die "авторизация не завершена — перезапустите ./install.sh, когда будете готовы войти."
   TOKEN_VAL=""
   while [ -z "$TOKEN_VAL" ]; do
