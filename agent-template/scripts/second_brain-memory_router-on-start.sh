@@ -11,7 +11,7 @@ set -euo pipefail
 # Env:
 #   AGENT_WORKSPACE  -- absolute path to .claude workspace; default: derive from script path
 #   AGENT_ID         -- short id; default: derived from workspace parent dir
-#   MCP_HOST         -- e.g. https://mcp.example.com or http://127.0.0.1:5001
+#   SECOND_BRAIN_MEMORY_ROUTER_URL -- e.g. http://127.0.0.1:5002/mcp (colocated) or https://mcp.example.com/memory_router/mcp
 #   AGENT_BEARER     -- bearer token for second_brain MCPs
 #   RECALL_LIMIT     -- top-N matches to retrieve (default 5)
 #
@@ -33,8 +33,8 @@ log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $1" >> "$LOG"; }
 
 log "=== second_brain-memory_router-on-start.sh START ==="
 
-if [ -z "${MCP_HOST:-}" ] || [ -z "${AGENT_BEARER:-}" ]; then
-    log "MCP_HOST or AGENT_BEARER unset; skipping recall"
+if [ -z "${SECOND_BRAIN_MEMORY_ROUTER_URL:-}" ] || [ -z "${AGENT_BEARER:-}" ]; then
+    log "SECOND_BRAIN_MEMORY_ROUTER_URL or AGENT_BEARER unset; skipping recall"
     exit 0
 fi
 
@@ -76,7 +76,7 @@ PY
 )
 
 # 3) POST to second_brain memory_router MCP
-RESPONSE=$(curl -sS -m 15 -X POST "${MCP_HOST%/}/memory_router/mcp" \
+RESPONSE=$(curl -sS -m 15 -X POST "${SECOND_BRAIN_MEMORY_ROUTER_URL}" \
     -H "Authorization: Bearer ${AGENT_BEARER}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \

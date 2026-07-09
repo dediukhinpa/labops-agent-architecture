@@ -53,9 +53,9 @@
 
 | Service | Endpoint | Description |
 |---------|----------|-------------|
-| second_brain memory MCP | `${MCP_HOST}/memory/mcp` | Write decisions, error-patterns, external notes |
-| second_brain memory_router MCP | `${MCP_HOST}/memory_router/mcp` | Read shared semantic memory |
-| second_brain agent_router MCP  | `${MCP_HOST}/agent_router/mcp`  | Inter-agent notify / broadcast |
+| second_brain memory MCP | `${SECOND_BRAIN_MEMORY_URL}` | Write decisions, error-patterns, external notes |
+| second_brain memory_router MCP | `${SECOND_BRAIN_MEMORY_ROUTER_URL}` | Read shared semantic memory |
+| second_brain agent_router MCP  | `${SECOND_BRAIN_AGENT_ROUTER_URL}`  | Inter-agent notify / broadcast |
 | gateway | -- | Telegram gateway (optional) |
 | {{SERVICE_1_NAME}} | {{SERVICE_1_PORT}} | {{SERVICE_1_DESC}} |
 

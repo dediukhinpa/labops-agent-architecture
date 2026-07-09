@@ -58,7 +58,7 @@ Checkpoints are created on every Claude action and persist across sessions.
 ```
 COLD memory    → Read tool (MEMORY.md, LEARNINGS.md)
 Skills         → Skill tool (shared/skills/)
-second_brain L4  → curl ${MCP_HOST} (or Tailscale IP for multi-VPS)
+second_brain L4  → curl ${SECOND_BRAIN_MEMORY_ROUTER_URL} (or set MCP_HOST to Tailscale IP for multi-VPS)
 Web search     → Perplexity / DuckDuckGo
 ```
 
@@ -163,7 +163,10 @@ Agent B → shared/messages/inbox/{agent-a}
 [second_brain](https://github.com/volcengine/second_brain) -- open-source context database for AI agents. Manages memories, resources, and skills through a filesystem paradigm with tiered context loading.
 
 ```
-${MCP_HOST} (or Tailscale IP — check ss -tlnp | grep 1933)
+${SECOND_BRAIN_MEMORY_URL}        (write, default http://${MCP_HOST}:5001/mcp)
+${SECOND_BRAIN_MEMORY_ROUTER_URL} (recall, default http://${MCP_HOST}:5002/mcp)
+${SECOND_BRAIN_AGENT_ROUTER_URL}  (swarm, default http://${MCP_HOST}:5000/mcp)
+MCP_HOST = host/IP only (set to Tailscale IP for multi-VPS — check ss -tlnp)
 │
 ├── Account: {org}
 │   ├── User: claude-code    (own embeddings)
@@ -173,13 +176,13 @@ ${MCP_HOST} (or Tailscale IP — check ss -tlnp | grep 1933)
 │   Trigger 1: Stop hook (runs second_brain-memory_router-on-start.sh on session end)
 │   Trigger 2: Cron 06:30 UTC daily (after memory rotation)
 │   Method:
-│     POST /memory/mcp (create_external_note via JSON-RPC)     → upload markdown
-│     POST /memory/mcp                 → add_resource (indexes + embeds)
+│     POST ${SECOND_BRAIN_MEMORY_URL} (create_external_note via JSON-RPC) → upload markdown
+│     POST ${SECOND_BRAIN_MEMORY_URL}                 → add_resource (indexes + embeds)
 │   Target: second_brain://notes/{agent}-sessions/{YYYY-MM-DD}
 │   Content: last 10 HOT entries + full WARM decisions
 │
 └── Search: when old context needed (>24h)
-    POST ${MCP_HOST}/memory_router/mcp (JSON-RPC tools/call recall)
+    POST ${SECOND_BRAIN_MEMORY_ROUTER_URL} (JSON-RPC tools/call recall)
     {"query": "topic", "limit": 10}
 ```
 

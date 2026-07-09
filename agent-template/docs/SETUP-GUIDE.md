@@ -6,7 +6,7 @@ This is the "client-side" of the public-second_brain-agentos distro. The "server
 (memory MCP, memory_router MCP, agent_router MCP, Postgres + pgvector, Caddy + TLS) is
 documented in [../docs/SERVER-SETUP.md](../docs/SERVER-SETUP.md) and installed
 via [../scripts/install-vps.sh](../scripts/install-vps.sh). You **must** have a
-running second_brain server (or know its `MCP_HOST` URL and have a Bearer token for
+running second_brain server (or know its `MCP_HOST` host/IP and have a Bearer token for
 your agent) before running `install.sh` here.
 
 ## Architecture in one paragraph
@@ -14,9 +14,10 @@ your agent) before running `install.sh` here.
 `agent-template/install.sh` creates `~/.claude-lab/<agent-id>/.claude/`. Inside,
 a four-layer memory pyramid (IDENTITY -> WARM -> HOT -> COLD) lives as Markdown
 files. A `.mcp.json` points Claude Code at three remote MCP servers --
-**memory** (write decisions / knowledge / external notes), **memory_router** (read
-shared semantic memory), **agent_router** (notify other agents) -- all behind a single
-`${MCP_HOST}` Bearer-authenticated endpoint. Three local hooks
+**memory** (write decisions / knowledge / external notes, default port 5001),
+**memory_router** (read shared semantic memory, default port 5002),
+**agent_router** (notify other agents, default port 5000) -- each on its own
+port, all Bearer-authenticated. Three local hooks
 (`session-start`, `stop`, `precompact`) keep the local memory fresh; an
 optional `second_brain-memory_router-on-start.sh` pulls top-N relevant items from the
 shared brain on each session start.
@@ -26,7 +27,7 @@ shared brain on each session start.
 - macOS or Linux with bash, `jq`, `python3`, `curl`, `git`
 - Claude Code CLI: `curl -fsSL https://claude.ai/install.sh | bash` (native installer, no Node.js needed)
 - second_brain server already deployed and reachable. You need:
-  - `MCP_HOST` URL (e.g. `https://mcp.example.com` or `http://<vps-ip>:5001`)
+  - `MCP_HOST` — host/IP only, no protocol or port (e.g. `127.0.0.1` or `mcp.example.com`). The three per-service endpoint URLs (`SECOND_BRAIN_MEMORY_URL` on port 5001, `SECOND_BRAIN_MEMORY_ROUTER_URL` on port 5002, `SECOND_BRAIN_AGENT_ROUTER_URL` on port 5000) are derived automatically, or override them directly for a Caddy-fronted setup.
   - Agent bearer token issued by
     [`../scripts/issue-agent-token.py`](../scripts/issue-agent-token.py) on the
     second_brain VPS
@@ -43,7 +44,7 @@ The script asks for:
 
 1. Agent identity (name, role, character, language, primary model, max subagents)
 2. Operator profile (name, address, timezone, budget cap)
-3. **second_brain connection** (MCP host URL, Bearer token, comma-separated scopes)
+3. **second_brain connection** (MCP host — host/IP only, Bearer token, comma-separated scopes)
 
 Default scopes: `decisions,external,knowledge,inbox`. Issue the token
 on the server with matching scopes:
@@ -64,7 +65,7 @@ Copy the printed token into the installer prompt.
 |-- CLAUDE.md                  # SOUL: who the agent is
 |-- .mcp.json                  # second_brain memory/memory_router/agent_router endpoints (chmod 600)
 |-- settings.json              # Claude Code hooks (SessionStart/Stop/PreCompact)
-|-- agent.env                  # source this to export MCP_HOST/AGENT_BEARER
+|-- agent.env                  # source this to export MCP_HOST/SECOND_BRAIN_*_URL/AGENT_BEARER
 |-- core/
 |   |-- USER.md                # operator profile
 |   |-- rules.md               # operational rules (RED zone, security)
@@ -96,7 +97,7 @@ source ~/.claude-lab/<agent-id>/.claude/agent.env
 curl -sS -H "Authorization: Bearer ${AGENT_BEARER}" \
      -H "Accept: application/json, text/event-stream" \
      -H "Content-Type: application/json" \
-     -X POST "${MCP_HOST}/memory_router/mcp" \
+     -X POST "${SECOND_BRAIN_MEMORY_ROUTER_URL}" \
      --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
@@ -111,9 +112,10 @@ claude --project ~/.claude-lab/<agent-id>/.claude
 ```
 
 On session start, the `SessionStart` hook reads `core/hot/handoff.md`, and if
-`MCP_HOST` / `AGENT_BEARER` are set, runs `scripts/second_brain-memory_router-on-start.sh`
-which posts a JSON-RPC `tools/call recall` to `${MCP_HOST}/memory_router/mcp` and
-prepends a `### YYYY-MM-DD HH:MM [second_brain-memory_router]` block to `core/hot/recent.md`.
+`SECOND_BRAIN_MEMORY_ROUTER_URL` / `AGENT_BEARER` are set, runs
+`scripts/second_brain-memory_router-on-start.sh` which posts a JSON-RPC
+`tools/call recall` to `${SECOND_BRAIN_MEMORY_ROUTER_URL}` and prepends a
+`### YYYY-MM-DD HH:MM [second_brain-memory_router]` block to `core/hot/recent.md`.
 
 On each turn end, `Stop` hook appends a 200-char snippet to `recent.md` and a
 full JSON envelope to `logs/verbose-YYYY-MM-DD.jsonl`.
@@ -161,7 +163,7 @@ in `Authorization` header, JSON-RPC 2.0 in the body.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `second_brain-memory_router-on-start.sh` logs "MCP_HOST or AGENT_BEARER unset" | shell didn't `source agent.env` | `source ~/.claude-lab/<agent-id>/.claude/agent.env` before `claude` |
+| `second_brain-memory_router-on-start.sh` logs "SECOND_BRAIN_MEMORY_ROUTER_URL or AGENT_BEARER unset" | shell didn't `source agent.env` | `source ~/.claude-lab/<agent-id>/.claude/agent.env` before `claude` |
 | recall returns `403` | token has no `inbox` (or relevant) scope, or wrong agent | re-issue with `issue-agent-token.py --scopes ...` |
 | recall returns empty results | second_brain DB has no notes yet | use `create_decision_note` first, or backfill from existing decisions.md |
 | `Stop` hook never fires | `settings.json` not picked up | confirm `claude --project` points at the workspace dir that contains `settings.json` |

@@ -47,6 +47,7 @@ import second_brain_doctor  # noqa: E402
 from second_brain_doctor import (  # noqa: E402
     DoctorContext,
     McpServer,
+    _infer_service,
     _parse_groups,
     load_mcp_config,
     main,
@@ -421,12 +422,56 @@ class TestMcpStreamable:
 # ---------------------------------------------------------------------------
 
 
+class TestInferService:
+    """Covers both supported deployment topologies for service inference."""
+
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            ("https://mcp.labops.local/memory/mcp", "memory"),
+            ("https://mcp.labops.local/memory_router/mcp", "memory_router"),
+            ("https://mcp.labops.local/agent_router/mcp", "agent_router"),
+            ("https://mcp.labops.local/task/mcp", "tasks"),
+        ],
+    )
+    def test_path_based_caddy_deployment(self, url, expected):
+        assert _infer_service(url) == expected
+
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            ("http://127.0.0.1:5001/mcp", "memory"),
+            ("http://127.0.0.1:5002/mcp", "memory_router"),
+            ("http://127.0.0.1:5000/mcp", "agent_router"),
+            ("http://127.0.0.1:5003/mcp", "tasks"),
+        ],
+    )
+    def test_port_based_colocated_deployment(self, url, expected):
+        assert _infer_service(url) == expected
+
+    def test_unknown_path_and_port_returns_none(self):
+        assert _infer_service("http://127.0.0.1:9999/mcp") is None
+
+    def test_malformed_url_returns_none(self):
+        assert _infer_service("::not a url::") is None
+
+
 class TestConfigLoader:
     def test_loads_valid_mcp_json(self):
         servers, path = load_mcp_config(str(_FIXTURES / "mcp-valid.json"), None)
         services = sorted(s.service for s in servers)
         assert services == ["agent_router", "memory", "memory_router"]
         assert path == _FIXTURES / "mcp-valid.json"
+        for s in servers:
+            assert s.token  # bearer extracted
+            assert s.type == "http"
+
+    def test_loads_valid_mcp_json_colocated_ports(self):
+        """The default no-Caddy deployment: services distinguished by port only."""
+        servers, path = load_mcp_config(str(_FIXTURES / "mcp-valid-colocated.json"), None)
+        services = sorted(s.service for s in servers)
+        assert services == ["agent_router", "memory", "memory_router"]
+        assert path == _FIXTURES / "mcp-valid-colocated.json"
         for s in servers:
             assert s.token  # bearer extracted
             assert s.type == "http"

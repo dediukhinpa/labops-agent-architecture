@@ -17,9 +17,9 @@ bash install.sh
 ```
 
 The installer asks for agent identity, operator profile, and **second_brain
-connection** (`MCP_HOST`, `AGENT_BEARER`, `AGENT_SCOPES`). It renders templates,
-copies scripts and hooks, writes `.mcp.json`, and optionally symlinks the
-shared skills bundle from `../skills/`.
+connection** (`MCP_HOST` host/IP, `AGENT_BEARER`, `AGENT_SCOPES`). It renders
+templates, copies scripts and hooks, writes `.mcp.json`, and optionally
+symlinks the shared skills bundle from `../skills/`.
 
 Then:
 
@@ -41,9 +41,10 @@ hooks/*.sh                     -> .claude/hooks/
 scripts/*.sh                   -> .claude/scripts/   (optional)
 ```
 
-Render `${MCP_HOST}`, `${AGENT_BEARER}`, `{{AGENT_ID}}` placeholders manually
-(or with `envsubst`). The hooks tolerate missing files and never block the
-harness on failure.
+Render `${SECOND_BRAIN_MEMORY_URL}`, `${SECOND_BRAIN_MEMORY_ROUTER_URL}`,
+`${SECOND_BRAIN_AGENT_ROUTER_URL}`, `${AGENT_BEARER}`, `{{AGENT_ID}}`
+placeholders manually (or with `envsubst`). The hooks tolerate missing files
+and never block the harness on failure.
 
 ## Workspace layout (what install.sh creates)
 
@@ -52,7 +53,7 @@ harness on failure.
 |-- CLAUDE.md                  # SOUL / identity
 |-- .mcp.json                  # second_brain memory/memory_router/agent_router endpoints (chmod 600)
 |-- settings.json              # Claude Code hooks (SessionStart/Stop/PreCompact)
-|-- agent.env                  # source this to export MCP_HOST/AGENT_BEARER
+|-- agent.env                  # source this to export MCP_HOST/SECOND_BRAIN_*_URL/AGENT_BEARER
 |-- core/
 |   |-- USER.md
 |   |-- rules.md

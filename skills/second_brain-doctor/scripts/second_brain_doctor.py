@@ -54,13 +54,24 @@ _SKILL_ROOT = _SCRIPT_DIR.parent
 VALID_GROUPS = {f"G{i}" for i in range(1, 11)}
 
 # Map a URL path segment to the canonical service name. second_brain uses ``/task/``
-# in the URL but the service is conceptually ``tasks``.
+# in the URL but the service is conceptually ``tasks``. Used for Caddy-fronted /
+# path-routed deployments (e.g. https://mcp.example.com/memory_router/mcp).
 _PATH_TO_SERVICE = {
     "memory": "memory",
     "memory_router": "memory_router",
     "agent_router": "agent_router",
     "task": "tasks",
     "tasks": "tasks",
+}
+
+# Map a direct port number to the canonical service name. Used for the default
+# colocated deployment, where each service is reached directly on its own port
+# with no distinguishing path segment (e.g. http://127.0.0.1:5002/mcp).
+_PORT_TO_SERVICE = {
+    5001: "memory",
+    5002: "memory_router",
+    5000: "agent_router",
+    5003: "tasks",
 }
 
 
@@ -81,27 +92,32 @@ class McpServer:
 
 
 def _infer_service(url: str) -> str | None:
-    """Infer the canonical service name from an MCP URL path.
+    """Infer the canonical service name from an MCP URL.
+
+    Tries a path segment first (Caddy/domain-fronted deployments, e.g.
+    ``https://host/agent_router/mcp``), then falls back to the port number
+    (the default colocated deployment, e.g. ``http://127.0.0.1:5002/mcp``).
 
     Args:
-        url: The server URL, e.g. ``https://host/agent_router/mcp``.
+        url: The server URL.
 
     Returns:
         ``"memory"`` / ``"memory_router"`` / ``"agent_router"`` / ``"tasks"`` or ``None``
-        when no known segment is present.
+        when neither a known path segment nor a known port is present.
     """
-    # Split path into segments and look for a known service token. We check
-    # the segment immediately before a trailing ``mcp`` first, then any match.
     try:
         from urllib.parse import urlparse
 
-        path = urlparse(url).path
+        parsed = urlparse(url)
+        path = parsed.path
     except Exception:  # noqa: BLE001 — malformed URL handled by caller
-        path = url
+        return None
     segments = [s for s in path.split("/") if s]
     for seg in segments:
         if seg in _PATH_TO_SERVICE:
             return _PATH_TO_SERVICE[seg]
+    if parsed.port is not None and parsed.port in _PORT_TO_SERVICE:
+        return _PORT_TO_SERVICE[parsed.port]
     return None
 
 

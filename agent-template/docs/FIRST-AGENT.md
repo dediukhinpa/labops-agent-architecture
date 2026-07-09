@@ -88,9 +88,10 @@ Create `~/.claude-lab/reviewer/.claude/core/AGENTS.md`:
 
 ## second_brain (optional)
 
-- URL: ${MCP_HOST} (use Tailscale IP for multi-VPS: check `ss -tlnp | grep 1933`)
+- Host: `${MCP_HOST}` — hostname/IP only (no protocol or port); use Tailscale IP for multi-VPS
 - Key: ~/.claude-lab/shared/secrets/second_brain.key
-- Search: POST ${MCP_HOST}/memory_router/mcp (JSON-RPC tools/call recall)
+- Search: POST `${SECOND_BRAIN_MEMORY_ROUTER_URL}` (default `http://${MCP_HOST}:5002/mcp`) — JSON-RPC tools/call recall
+- Write: POST `${SECOND_BRAIN_MEMORY_URL}` (default `http://${MCP_HOST}:5001/mcp`)
 - Sync: Stop hook + cron via second_brain-memory_router-on-start.sh (see MEMORY.md)
 ```
 

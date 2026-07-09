@@ -21,7 +21,7 @@
 │  NOT in context, Read tool on demand      │
 ├──────────────────────────────────────────┤
 │  L4 SEMANTIC (second_brain)                │
-│  ${MCP_HOST}                           │
+│  ${SECOND_BRAIN_MEMORY_ROUTER_URL}     │
 │  NOT in context, curl on demand           │
 └──────────────────────────────────────────┘
 ```
@@ -75,11 +75,11 @@
 
 ### L4 Semantic ([second_brain](https://github.com/volcengine/second_brain))
 
-- Endpoint: `${MCP_HOST}`
+- Endpoints: `${SECOND_BRAIN_MEMORY_URL}` (write, default port 5001), `${SECOND_BRAIN_MEMORY_ROUTER_URL}` (recall, default port 5002), `${SECOND_BRAIN_AGENT_ROUTER_URL}` (swarm, default port 5000)
 - NOT loaded at startup
 - Accessed via curl when old context needed (>24h)
 - Each agent has own namespace (User header)
-- Search: `POST ${MCP_HOST}/memory_router/mcp (JSON-RPC tools/call recall)`
+- Search: `POST ${SECOND_BRAIN_MEMORY_ROUTER_URL}` (JSON-RPC tools/call recall)
 - Stores embeddings of past conversations
 - Install: `pip install second_brain --upgrade`
 
@@ -254,8 +254,8 @@ A shell script (`second_brain-memory_router-on-start.sh`) collects HOT + WARM me
 ```
 1. Health check → second_brain reachable?
 2. Build markdown summary from HOT (last 10 entries) + WARM (full)
-3. POST /memory/mcp (create_external_note via JSON-RPC) → upload markdown as temp file
-4. POST /memory/mcp → add_resource with target URI + wait=true
+3. POST ${SECOND_BRAIN_MEMORY_URL} (create_external_note via JSON-RPC) → upload markdown as temp file
+4. POST ${SECOND_BRAIN_MEMORY_URL} → add_resource with target URI + wait=true
 5. second_brain indexes content, creates embeddings automatically
 ```
 
@@ -306,14 +306,14 @@ Gateway can push to second_brain after **every message** where:
 Both methods produce embeddings searchable via the same API:
 
 ```bash
-curl -X POST "${MCP_HOST}/memory_router/mcp" \
+curl -X POST "${SECOND_BRAIN_MEMORY_ROUTER_URL}" \
   -H "X-API-Key: $KEY" \
   -H "X-second_brain-Account: $ACCOUNT" \
   -H "X-second_brain-User: $AGENT" \
   -d '{"query": "topic", "limit": 10}'
 ```
 
-**Note:** `${MCP_HOST}` is the default. For multi-VPS setups, use the Tailscale IP of the server running second_brain (e.g., `100.x.x.x (second_brain MCP via ${MCP_HOST})`).
+**Note:** `${SECOND_BRAIN_MEMORY_ROUTER_URL}` defaults to `http://${MCP_HOST}:5002/mcp`. For multi-VPS setups, set `MCP_HOST` to the Tailscale IP of the server running second_brain, or override `SECOND_BRAIN_MEMORY_ROUTER_URL` directly.
 
 ## Data Priority
 

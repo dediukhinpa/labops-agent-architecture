@@ -247,7 +247,7 @@ flowchart LR
 
 [`agent-template/`](agent-template/) — полный шаблон воркспейса Claude Code, проводнённый к общему `labops-second-brain` (memory + memory_router + agent_router). Интерактивный `install.sh` спрашивает идентичность агента и параметры подключения к мозгу, рендерит шаблоны и собирает воркспейс в `~/.claude-lab/<agent-id>/.claude/`.
 
-**Промпты при скаффолде** (попадают в плейсхолдеры `CLAUDE.md`): имя (`{{AGENT_NAME}}`), роль (`{{AGENT_ROLE}}` / `{{AGENT_ROLE_DESCRIPTION}}`), характер (`{{CHARACTER_TRAITS}}`), как обращаться к оператору, язык ответов, модель; плюс параметры мозга — `MCP_HOST`, `AGENT_BEARER`, `AGENT_SCOPES`.
+**Промпты при скаффолде** (попадают в плейсхолдеры `CLAUDE.md`): имя (`{{AGENT_NAME}}`), роль (`{{AGENT_ROLE}}` / `{{AGENT_ROLE_DESCRIPTION}}`), характер (`{{CHARACTER_TRAITS}}`), как обращаться к оператору, язык ответов, модель; плюс параметры мозга — `MCP_HOST` (только хост/IP), `AGENT_BEARER`, `AGENT_SCOPES`. Три переменные per-service (`SECOND_BRAIN_MEMORY_URL`, `SECOND_BRAIN_MEMORY_ROUTER_URL`, `SECOND_BRAIN_AGENT_ROUTER_URL`) выводятся автоматически из `MCP_HOST`, но могут быть переопределены напрямую.
 
 **Что генерируется:**
 
@@ -256,7 +256,7 @@ flowchart LR
 ├── CLAUDE.md            # SOUL / идентичность (из templates/CLAUDE.md.template)
 ├── .mcp.json            # ТОЛЬКО 3 сервера second_brain (memory/memory_router/agent_router), chmod 600
 ├── settings.json        # хуки SessionStart / Stop / PreCompact
-├── agent.env            # source перед запуском: MCP_HOST / AGENT_BEARER
+├── agent.env            # source перед запуском: MCP_HOST / SECOND_BRAIN_*_URL / AGENT_BEARER
 ├── core/
 │   ├── USER.md · rules.md · AGENTS.md · MEMORY.md · LEARNINGS.md
 │   ├── warm/decisions.md           # WARM (последние 14д)
@@ -338,7 +338,7 @@ flowchart LR
 
 | Событие | Хук (`agent-template/hooks/`) | Что делает |
 |---|---|---|
-| **SessionStart** | `session-start-hook.sh` | логирует старт; если есть `MCP_HOST`+`AGENT_BEARER` — зовёт `second_brain-memory_router-on-start.sh` (дописывает блок релевантных recall в `hot/recent.md`); surface `handoff.md`. В рое также `agent-boot-sequence.sh`: 👀 на свежие сообщения + `agent_router.list_my_pending()` (забрать делегированные задачи — pull-страховка) |
+| **SessionStart** | `session-start-hook.sh` | логирует старт; если есть `SECOND_BRAIN_MEMORY_ROUTER_URL`+`AGENT_BEARER` — зовёт `second_brain-memory_router-on-start.sh` (дописывает блок релевантных recall в `hot/recent.md`); surface `handoff.md`. В рое также `agent-boot-sequence.sh`: 👀 на свежие сообщения + `agent_router.list_my_pending()` (забрать делегированные задачи — pull-страховка) |
 | **Stop** | `stop-hook.sh` | дописывает 200-символьный сниппет хода в `hot/recent.md` и подробную JSON-строку в `logs/verbose-YYYY-MM-DD.jsonl`. В рое также `read-receipt-hook.ts` (POST `/hooks/react` → 👌) и `reflect-error-pattern.sh` (если Оператор поправил → нудж записать error-pattern через `decision:"block"`) |
 | **PreCompact** | `precompact-hook.sh` | снапшотит `hot/recent.md` в `hot/pre-compact/` перед авто-компакцией, держит последние `KEEP_SNAPSHOTS` (10) |
 
@@ -438,7 +438,10 @@ bash install.sh --test-only
 
 | Переменная | Где | Назначение |
 |---|---|---|
-| `MCP_HOST` | `.mcp.json`, `agent.env` | базовый URL second_brain (рендерит `${MCP_HOST}/memory/mcp` и т.д.) |
+| `MCP_HOST` | `agent.env` | только хост/IP, без протокола и порта (например, `127.0.0.1`); используется для вывода трёх `SECOND_BRAIN_*_URL` по умолчанию |
+| `SECOND_BRAIN_MEMORY_URL` | `.mcp.json`, `agent.env` | полный URL memory `/mcp` (по умолчанию `http://${MCP_HOST}:5001/mcp`); можно переопределить для Caddy-фронтенда |
+| `SECOND_BRAIN_MEMORY_ROUTER_URL` | `.mcp.json`, `agent.env` | полный URL memory_router `/mcp` (по умолчанию `http://${MCP_HOST}:5002/mcp`) |
+| `SECOND_BRAIN_AGENT_ROUTER_URL` | `.mcp.json`, `agent.env` | полный URL agent_router `/mcp` (по умолчанию `http://${MCP_HOST}:5000/mcp`) |
 | `AGENT_BEARER` | `.mcp.json` (chmod 600) | Bearer-токен агента для MCP (в БД хранится только `token_sha256`) |
 | `AGENT_SCOPES` | install | RBAC-scopes на чтение/запись (scope = первая папка пути в vault) |
 | `CLAUDE_LAB` | окружение | корень лаборатории (по умолчанию `$HOME/.claude-lab`); roster и токены ищутся относительно него |
@@ -478,7 +481,7 @@ bash install.sh --test-only
 | Сервис не `active` | `systemctl status claude-agent-<agent>` + `journalctl -u claude-agent-<agent> -n50`. Частая причина — `claude` не авторизован (`claude setup-token`) или нет `channel.env`. |
 | `no TELEGRAM_BOT_TOKEN` в логе | `channel.env` не там, где ищет `start-agent.sh` — он берёт из `lib/agents.sh` (`/etc/labops-plugin/<agent>/` или `$CLAUDE_LAB/shared/state/<agent>/telegram/`). Пересоздайте через `new-agent.sh`. |
 | «Модель не ответила» | `claude setup-token` под пользователем агента, затем `systemctl restart claude-agent-<agent>`. |
-| `second_brain недоступен` | Проверьте `MCP_HOST` в `agent.env` (локально `127.0.0.1:5001`, удалённо — IP/домен VPS) и что мозг поднят. |
+| `second_brain недоступен` | Проверьте `SECOND_BRAIN_MEMORY_URL` / `SECOND_BRAIN_MEMORY_ROUTER_URL` / `SECOND_BRAIN_AGENT_ROUTER_URL` в `agent.env` (по умолчанию `http://127.0.0.1:5001/mcp` и т.д.) и что мозг поднят. `MCP_HOST` — только хост/IP; `SECOND_BRAIN_*_URL` — полные URL эндпоинтов. |
 | Повторный запуск/коллизия имени | `new-agent.sh` не затирает существующего агента; для донастройки поверх — `REUSE_EXISTING=1`. |
 
 </details>

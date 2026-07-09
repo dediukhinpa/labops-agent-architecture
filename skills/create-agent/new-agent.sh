@@ -14,7 +14,9 @@
 # Переменные (любую можно передать заранее — тогда без вопроса):
 #   AGENT_NAME AGENT_ROLE AGENT_ROLE_DESCRIPTION CHARACTER_TRAITS
 #   PRIMARY_MODEL OPERATOR_NAME OPERATOR_ADDRESS TIMEZONE LANGUAGE
-#   MCP_HOST AGENT_SCOPES TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_USER_IDS
+#   MCP_HOST (default: 127.0.0.1, colocated) AGENT_SCOPES
+#   SECOND_BRAIN_MEMORY_URL/_MEMORY_ROUTER_URL/_AGENT_ROUTER_URL (override for Caddy/remote)
+#   TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_USER_IDS
 #   ENABLE_VOICE(=1) AUTOSTART(=1)
 #   SECOND_BRAIN_DIR (для авто-выдачи токена)  TG_PLUGIN_DIR  CLAUDE_LAB
 
@@ -64,7 +66,7 @@ done
 [ -n "$TG_PLUGIN_DIR" ] && ok "labops-tg-plugin: $TG_PLUGIN_DIR" || warn "labops-tg-plugin не найден — Telegram пропущу (задайте TG_PLUGIN_DIR)"
 
 # ── 1. Параметры агента ─────────────────────────────────────────
-say "1. Кто этот агент"
+say "1. Конфигурация агента"
 ask AGENT_NAME  "Имя агента (напр. Developer, Friday)" "Developer"
 ask AGENT_ROLE  "Роль агента" "Разработчик"
 ask AGENT_ROLE_DESCRIPTION "Описание роли одной фразой" "Автономный разработчик: пишет код, ревьюит архитектуру, гоняет тесты, помогает ставить других агентов."
@@ -77,9 +79,18 @@ fi
 ask PRIMARY_MODEL    "Модель Anthropic — opus / sonnet / haiku (Developer рекоменд.: opus = Opus 4.8)" "opus"
 ask LANGUAGE         "Язык ответов" "Russian"
 ask OPERATOR_ADDRESS "Как обращаться к вам" "Boss"
-ask MCP_HOST         "URL второго мозга (http://<vps-ip>:5001 или https://...)" "http://127.0.0.1:5001"
+# Второй мозг всегда колоцирован на этом же VPS, без Caddy — прямые
+# host:port URL на дефолтных портах, без вопроса. Переопределяется через
+# MCP_HOST (другой хост) или напрямую SECOND_BRAIN_*_URL (напр. Caddy+домен).
+: "${MCP_HOST:=127.0.0.1}"
 MCP_HOST="${MCP_HOST%/}"
-ask AGENT_SCOPES     "Scopes агента" "decisions,external,knowledge,inbox"
+: "${MCP_MEMORY_PORT:=5001}"
+: "${MCP_MEMORY_ROUTER_PORT:=5002}"
+: "${MCP_AGENT_ROUTER_PORT:=5000}"
+: "${SECOND_BRAIN_MEMORY_URL:=http://${MCP_HOST}:${MCP_MEMORY_PORT}/mcp}"
+: "${SECOND_BRAIN_MEMORY_ROUTER_URL:=http://${MCP_HOST}:${MCP_MEMORY_ROUTER_PORT}/mcp}"
+: "${SECOND_BRAIN_AGENT_ROUTER_URL:=http://${MCP_HOST}:${MCP_AGENT_ROUTER_PORT}/mcp}"
+: "${AGENT_SCOPES:=decisions,external,knowledge,inbox}"
 
 # ── 2. Токен второго мозга ──────────────────────────────────────
 say "2. Токен во втором мозге"
@@ -101,6 +112,9 @@ NONINTERACTIVE=1 AGENT_NAME="$AGENT_NAME" AGENT_ROLE="$AGENT_ROLE" \
   AGENT_ROLE_DESCRIPTION="$AGENT_ROLE_DESCRIPTION" LANGUAGE="$LANGUAGE" \
   PRIMARY_MODEL="$PRIMARY_MODEL" \
   OPERATOR_ADDRESS="$OPERATOR_ADDRESS" MCP_HOST="$MCP_HOST" \
+  SECOND_BRAIN_MEMORY_URL="$SECOND_BRAIN_MEMORY_URL" \
+  SECOND_BRAIN_MEMORY_ROUTER_URL="$SECOND_BRAIN_MEMORY_ROUTER_URL" \
+  SECOND_BRAIN_AGENT_ROUTER_URL="$SECOND_BRAIN_AGENT_ROUTER_URL" \
   AGENT_BEARER="$AGENT_BEARER" AGENT_SCOPES="$AGENT_SCOPES" \
   bash "$AGENT_TEMPLATE/install.sh"
 WORKSPACE="$LAB_DIR/$AGENT_ID/.claude"
@@ -208,11 +222,11 @@ FAIL=0
 # 7a. второй мозг отвечает
 if curl -fsS -H "Authorization: Bearer $AGENT_BEARER" \
         -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" \
-        -X POST "$MCP_HOST/memory_router/mcp" \
+        -X POST "$SECOND_BRAIN_MEMORY_ROUTER_URL" \
         --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' >/dev/null 2>&1; then
   ok "second_brain memory_router отвечает"
 else
-  warn "second_brain memory_router недоступен на $MCP_HOST (проверьте токен/хост)"; FAIL=1
+  warn "second_brain memory_router недоступен на $SECOND_BRAIN_MEMORY_ROUTER_URL (проверьте токен/хост)"; FAIL=1
 fi
 # 7b. Telegram-бот валиден
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then

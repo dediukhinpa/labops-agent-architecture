@@ -16,9 +16,12 @@ SSE `data:` frame.
 # Raw Bearer for this agent. Never echo it into a shared chat.
 export SECOND_BRAIN_TOKEN="$(cat ~/.secrets/second_brain-token)"
 
-# Endpoints — take the exact URLs from this agent's .mcp.json.
-export MEMORY_URL="https://mcp.labops.local/memory/mcp"
-export SWARM_URL="https://mcp.labops.local/agent_router/mcp"
+# Endpoints — take the exact URLs from this agent's .mcp.json (SECOND_BRAIN_MEMORY_URL
+# and SECOND_BRAIN_AGENT_ROUTER_URL). For a default colocated (no-Caddy) install these
+# are port-based, e.g. http://127.0.0.1:5001/mcp and http://127.0.0.1:5000/mcp.
+# For a Caddy-fronted remote install they look like the examples below.
+export MEMORY_URL="${SECOND_BRAIN_MEMORY_URL:-https://mcp.labops.local/memory/mcp}"
+export SWARM_URL="${SECOND_BRAIN_AGENT_ROUTER_URL:-https://mcp.labops.local/agent_router/mcp}"
 
 # The agent you are checking (used as to_agent for the self-notify roundtrip).
 export AGENT="nova"

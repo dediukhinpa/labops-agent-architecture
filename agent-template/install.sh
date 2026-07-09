@@ -117,10 +117,20 @@ prompt BUDGET_LIMIT           "Red zone budget limit in USD [50]" "50"
 prompt GITHUB_USERNAME        "GitHub username (or skip)" "your-username"
 
 [ "${NONINTERACTIVE:-0}" = "1" ] || { echo ""; echo "--- second_brain MCP server ---"; }
-prompt MCP_HOST               "MCP host URL (e.g. https://mcp.example.com or http://<vps-ip>:5001)" "https://mcp.example.com"
+prompt MCP_HOST               "second_brain host (IP/domain, no protocol or port -- e.g. 127.0.0.1 for a colocated install)" "127.0.0.1"
 MCP_HOST="${MCP_HOST%/}"  # strip trailing slash
 prompt AGENT_BEARER          "Agent bearer token (issued by scripts/issue-agent-token.py)" "CHANGE_ME"
 prompt AGENT_SCOPES          "Agent scopes [decisions,external,knowledge,inbox]" "decisions,external,knowledge,inbox"
+
+# Direct per-service host:port URLs (no Caddy/reverse-proxy needed for the
+# default colocated setup). Override SECOND_BRAIN_*_URL directly for a
+# Caddy-fronted remote deployment (e.g. https://mcp.example.com/memory/mcp).
+: "${MCP_MEMORY_PORT:=5001}"
+: "${MCP_MEMORY_ROUTER_PORT:=5002}"
+: "${MCP_AGENT_ROUTER_PORT:=5000}"
+: "${SECOND_BRAIN_MEMORY_URL:=http://${MCP_HOST}:${MCP_MEMORY_PORT}/mcp}"
+: "${SECOND_BRAIN_MEMORY_ROUTER_URL:=http://${MCP_HOST}:${MCP_MEMORY_ROUTER_PORT}/mcp}"
+: "${SECOND_BRAIN_AGENT_ROUTER_URL:=http://${MCP_HOST}:${MCP_AGENT_ROUTER_PORT}/mcp}"
 
 # ============================================================
 # Step 3: Confirm
@@ -137,7 +147,9 @@ echo "  Model:       ${PRIMARY_MODEL}"
 echo "  Operator:    ${OPERATOR_NAME}"
 echo "  Language:    ${LANGUAGE}"
 echo "  Workspace:   ${LAB_DIR}/${AGENT_ID}/.claude/"
-echo "  second_brain host: ${MCP_HOST}"
+echo "  second_brain memory:        ${SECOND_BRAIN_MEMORY_URL}"
+echo "  second_brain memory_router: ${SECOND_BRAIN_MEMORY_ROUTER_URL}"
+echo "  second_brain agent_router:  ${SECOND_BRAIN_AGENT_ROUTER_URL}"
 echo "  Scopes:      ${AGENT_SCOPES}"
 echo ""
 if [ "${NONINTERACTIVE:-0}" != "1" ]; then
@@ -210,6 +222,9 @@ fill_template() {
 
     # ${VAR} placeholders (for .mcp.json template and tools.md, settings.json)
     sed_i "s|\${MCP_HOST}|${MCP_HOST}|g" "$dst"
+    sed_i "s|\${SECOND_BRAIN_MEMORY_URL}|${SECOND_BRAIN_MEMORY_URL}|g" "$dst"
+    sed_i "s|\${SECOND_BRAIN_MEMORY_ROUTER_URL}|${SECOND_BRAIN_MEMORY_ROUTER_URL}|g" "$dst"
+    sed_i "s|\${SECOND_BRAIN_AGENT_ROUTER_URL}|${SECOND_BRAIN_AGENT_ROUTER_URL}|g" "$dst"
     sed_i "s|\${AGENT_BEARER}|${AGENT_BEARER}|g" "$dst"
 
     # Sweep any unsubstituted {{TODO}} placeholders
@@ -281,6 +296,9 @@ if [ ! -f "$AGENT_RC" ]; then
 export AGENT_ID="${AGENT_ID}"
 export AGENT_WORKSPACE="${WORKSPACE}"
 export MCP_HOST="${MCP_HOST}"
+export SECOND_BRAIN_MEMORY_URL="${SECOND_BRAIN_MEMORY_URL}"
+export SECOND_BRAIN_MEMORY_ROUTER_URL="${SECOND_BRAIN_MEMORY_ROUTER_URL}"
+export SECOND_BRAIN_AGENT_ROUTER_URL="${SECOND_BRAIN_AGENT_ROUTER_URL}"
 export AGENT_BEARER="${AGENT_BEARER}"
 export AGENT_SCOPES="${AGENT_SCOPES}"
 export SUMMARY_LANGUAGE="${LANGUAGE}"
@@ -403,7 +421,7 @@ echo "       source ${AGENT_RC}"
 echo "       curl -sS -H \"Authorization: Bearer \${AGENT_BEARER}\" \\"
 echo "            -H \"Accept: application/json, text/event-stream\" \\"
 echo "            -H \"Content-Type: application/json\" \\"
-echo "            -X POST \"\${MCP_HOST}/memory_router/mcp\" \\"
+echo "            -X POST \"\${SECOND_BRAIN_MEMORY_ROUTER_URL}\" \\"
 echo "            --data '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}'"
 echo ""
 echo "    3. Launch agent (settings.json wires Stop/SessionStart/PreCompact hooks):"

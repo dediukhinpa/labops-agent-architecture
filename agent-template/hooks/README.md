@@ -23,14 +23,19 @@ Hooks read these env vars (all optional):
 |---|---|---|
 | `AGENT_WORKSPACE` | all | derived from script path (`hooks/..`) |
 | `AGENT_ID` | all | derived from workspace parent dir |
-| `MCP_HOST` | session-start | unset -> skip recall |
+| `MCP_HOST` | session-start | host/IP only (no protocol/port); used to derive `SECOND_BRAIN_*_URL` defaults; unset -> skip recall |
+| `SECOND_BRAIN_MEMORY_ROUTER_URL` | session-start | full URL to memory_router `/mcp` (default `http://${MCP_HOST}:5002/mcp`); unset -> skip recall |
 | `AGENT_BEARER` | session-start | unset -> skip recall |
 | `RECALL_LIMIT` | session-start (-> recall script) | 5 |
 | `KEEP_SNAPSHOTS` | precompact | 10 |
 
-`install.sh` can write `MCP_HOST` / `AGENT_BEARER` to a per-agent rc file that
-you `source` before launching Claude Code, or you can export them in your
-shell profile.
+`install.sh` writes `MCP_HOST`, the three `SECOND_BRAIN_*_URL` vars, and
+`AGENT_BEARER` to a per-agent `agent.env` file that you `source` before
+launching Claude Code, or you can export them in your shell profile.
+`MCP_HOST` is the host/IP only (no protocol or port); the `SECOND_BRAIN_*_URL`
+vars are the actual per-service endpoint URLs (memory `:5001`, memory_router
+`:5002`, agent_router `:5000` by default) and can be overridden directly for
+Caddy-fronted remote deployments.
 
 ## Wiring
 

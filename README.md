@@ -247,7 +247,7 @@ The **shared-brain write policy** is fixed in [`SECONDBRAIN_WRITE_RULES.md`](SEC
 
 [`agent-template/`](agent-template/) is a complete Claude Code workspace template, wired to the shared `labops-second-brain` (memory + memory_router + agent_router). The interactive `install.sh` asks for the agent's identity and brain connection parameters, renders the templates, and assembles the workspace into `~/.claude-lab/<agent-id>/.claude/`.
 
-**Prompts during scaffolding** (they fill `CLAUDE.md` placeholders): name (`{{AGENT_NAME}}`), role (`{{AGENT_ROLE}}` / `{{AGENT_ROLE_DESCRIPTION}}`), character (`{{CHARACTER_TRAITS}}`), how to address the Operator, response language, model; plus brain parameters — `MCP_HOST`, `AGENT_BEARER`, `AGENT_SCOPES`.
+**Prompts during scaffolding** (they fill `CLAUDE.md` placeholders): name (`{{AGENT_NAME}}`), role (`{{AGENT_ROLE}}` / `{{AGENT_ROLE_DESCRIPTION}}`), character (`{{CHARACTER_TRAITS}}`), how to address the Operator, response language, model; plus brain parameters — `MCP_HOST` (host/IP only), `AGENT_BEARER`, `AGENT_SCOPES`. Three per-service endpoint vars (`SECOND_BRAIN_MEMORY_URL`, `SECOND_BRAIN_MEMORY_ROUTER_URL`, `SECOND_BRAIN_AGENT_ROUTER_URL`) are derived automatically from `MCP_HOST` but can be overridden directly.
 
 **What gets generated:**
 
@@ -256,7 +256,7 @@ The **shared-brain write policy** is fixed in [`SECONDBRAIN_WRITE_RULES.md`](SEC
 ├── CLAUDE.md            # SOUL / identity (from templates/CLAUDE.md.template)
 ├── .mcp.json            # ONLY the 3 second_brain servers (memory/memory_router/agent_router), chmod 600
 ├── settings.json        # SessionStart / Stop / PreCompact hooks
-├── agent.env            # source before launch: MCP_HOST / AGENT_BEARER
+├── agent.env            # source before launch: MCP_HOST / SECOND_BRAIN_*_URL / AGENT_BEARER
 ├── core/
 │   ├── USER.md · rules.md · AGENTS.md · MEMORY.md · LEARNINGS.md
 │   ├── warm/decisions.md           # WARM (last 14d)
@@ -338,7 +338,7 @@ A hook is **not a server**: the Claude Code engine emits an event at a defined m
 
 | Event | Hook (`agent-template/hooks/`) | What it does |
 |---|---|---|
-| **SessionStart** | `session-start-hook.sh` | logs the start; if `MCP_HOST`+`AGENT_BEARER` are present — calls `second_brain-memory_router-on-start.sh` (appends a block of relevant recall to `hot/recent.md`); surfaces `handoff.md`. In a swarm, also `agent-boot-sequence.sh`: 👀 on fresh messages + `agent_router.list_my_pending()` (pull delegated tasks — a pull safeguard) |
+| **SessionStart** | `session-start-hook.sh` | logs the start; if `SECOND_BRAIN_MEMORY_ROUTER_URL`+`AGENT_BEARER` are present — calls `second_brain-memory_router-on-start.sh` (appends a block of relevant recall to `hot/recent.md`); surfaces `handoff.md`. In a swarm, also `agent-boot-sequence.sh`: 👀 on fresh messages + `agent_router.list_my_pending()` (pull delegated tasks — a pull safeguard) |
 | **Stop** | `stop-hook.sh` | appends a 200-char turn snippet to `hot/recent.md` and a detailed JSON line to `logs/verbose-YYYY-MM-DD.jsonl`. In a swarm, also `read-receipt-hook.ts` (POST `/hooks/react` → 👌) and `reflect-error-pattern.sh` (if the Operator corrected something → nudge to record an error-pattern via `decision:"block"`) |
 | **PreCompact** | `precompact-hook.sh` | snapshots `hot/recent.md` into `hot/pre-compact/` before auto-compaction, keeps the last `KEEP_SNAPSHOTS` (10) |
 
@@ -438,7 +438,10 @@ bash install.sh --test-only
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `MCP_HOST` | `.mcp.json`, `agent.env` | base URL of second_brain (renders `${MCP_HOST}/memory/mcp` etc.) |
+| `MCP_HOST` | `agent.env` | host/IP only, no protocol or port (e.g. `127.0.0.1`); used to derive the three `SECOND_BRAIN_*_URL` defaults |
+| `SECOND_BRAIN_MEMORY_URL` | `.mcp.json`, `agent.env` | full URL to memory `/mcp` (default `http://${MCP_HOST}:5001/mcp`); override for Caddy-fronted setups |
+| `SECOND_BRAIN_MEMORY_ROUTER_URL` | `.mcp.json`, `agent.env` | full URL to memory_router `/mcp` (default `http://${MCP_HOST}:5002/mcp`) |
+| `SECOND_BRAIN_AGENT_ROUTER_URL` | `.mcp.json`, `agent.env` | full URL to agent_router `/mcp` (default `http://${MCP_HOST}:5000/mcp`) |
 | `AGENT_BEARER` | `.mcp.json` (chmod 600) | the agent's Bearer token for MCP (only `token_sha256` is stored in the DB) |
 | `AGENT_SCOPES` | install | RBAC scopes for read/write (a scope = the first path folder in the vault) |
 | `CLAUDE_LAB` | environment | the lab root (default `$HOME/.claude-lab`); roster and tokens are resolved relative to it |
@@ -478,7 +481,7 @@ A green smoke means: the workspace was created, the brain responds by Bearer, th
 | The service is not `active` | `systemctl status claude-agent-<agent>` + `journalctl -u claude-agent-<agent> -n50`. A common cause — `claude` is not authorized (`claude setup-token`) or there's no `channel.env`. |
 | `no TELEGRAM_BOT_TOKEN` in the log | `channel.env` isn't where `start-agent.sh` looks — it takes it from `lib/agents.sh` (`/etc/labops-plugin/<agent>/` or `$CLAUDE_LAB/shared/state/<agent>/telegram/`). Recreate via `new-agent.sh`. |
 | "The model didn't respond" | `claude setup-token` under the agent's user, then `systemctl restart claude-agent-<agent>`. |
-| `second_brain unreachable` | Check `MCP_HOST` in `agent.env` (locally `127.0.0.1:5001`, remotely — VPS IP/domain) and that the brain is up. |
+| `second_brain unreachable` | Check `SECOND_BRAIN_MEMORY_URL` / `SECOND_BRAIN_MEMORY_ROUTER_URL` / `SECOND_BRAIN_AGENT_ROUTER_URL` in `agent.env` (default `http://127.0.0.1:5001/mcp` etc.) and that the brain is up. `MCP_HOST` is the host/IP only; the `SECOND_BRAIN_*_URL` vars are the actual endpoint URLs. |
 | Re-run / name collision | `new-agent.sh` doesn't overwrite an existing agent; to tune on top — `REUSE_EXISTING=1`. |
 
 </details>

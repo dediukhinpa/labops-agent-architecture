@@ -431,13 +431,13 @@ SECOND_BRAIN_BEARER=$(cat ~/.claude-lab/shared/secrets/second_brain.key)
 
 # Agent syncs sessions to its own namespace (via second_brain-memory_router-on-start.sh or manual)
 # Step 1: upload markdown
-curl -X POST "${MCP_HOST}/memory/mcp (create_external_note via JSON-RPC)" \
+curl -X POST "${SECOND_BRAIN_MEMORY_URL}" \
   -H "X-API-Key: $SECOND_BRAIN_BEARER" \
   -H "X-second_brain-Account: my-team" \
   -H "X-second_brain-User: jarvis" \
   -F "file=@session-summary.md"
 # Step 2: add resource (returns after indexing)
-curl -X POST "${MCP_HOST}/memory/mcp" \
+curl -X POST "${SECOND_BRAIN_MEMORY_URL}" \
   -H "X-API-Key: $SECOND_BRAIN_BEARER" \
   -H "X-second_brain-Account: my-team" \
   -H "X-second_brain-User: jarvis" \
@@ -445,7 +445,7 @@ curl -X POST "${MCP_HOST}/memory/mcp" \
   -d '{"temp_file_id":"<from step 1>","to":"second_brain://notes/jarvis-sessions/2026-04-10","wait":true}'
 
 # Any agent can search across ALL namespaces
-curl -X POST "${MCP_HOST}/memory_router/mcp" \
+curl -X POST "${SECOND_BRAIN_MEMORY_ROUTER_URL}" \
   -H "X-API-Key: $SECOND_BRAIN_BEARER" \
   -H "X-second_brain-Account: my-team" \
   -H "X-second_brain-User: jarvis" \
