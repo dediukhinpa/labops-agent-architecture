@@ -120,7 +120,7 @@ prompt GITHUB_USERNAME        "GitHub username (or skip)" "your-username"
 prompt MCP_HOST               "MCP host URL (e.g. https://mcp.example.com or http://<vps-ip>:8767)" "https://mcp.example.com"
 MCP_HOST="${MCP_HOST%/}"  # strip trailing slash
 prompt AGENT_BEARER          "Agent bearer token (issued by scripts/issue-agent-token.py)" "CHANGE_ME"
-prompt AGENT_SCOPES          "Agent scopes [30-decisions,50-external,70-runbooks,90-inbox]" "30-decisions,50-external,70-runbooks,90-inbox"
+prompt AGENT_SCOPES          "Agent scopes [decisions,external,runbooks,inbox]" "decisions,external,runbooks,inbox"
 
 # ============================================================
 # Step 3: Confirm

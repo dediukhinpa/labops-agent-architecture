@@ -79,7 +79,7 @@ ask LANGUAGE         "Язык ответов" "Russian"
 ask OPERATOR_ADDRESS "Как обращаться к вам" "Boss"
 ask MCP_HOST         "URL второго мозга (http://<vps-ip>:8767 или https://...)" "http://127.0.0.1:8767"
 MCP_HOST="${MCP_HOST%/}"
-ask AGENT_SCOPES     "Scopes агента" "30-decisions,50-external,70-runbooks,90-inbox"
+ask AGENT_SCOPES     "Scopes агента" "decisions,external,runbooks,inbox"
 
 # ── 2. Токен второго мозга ──────────────────────────────────────
 say "2. Токен во втором мозге"

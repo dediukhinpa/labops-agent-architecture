@@ -45,14 +45,14 @@ The script asks for:
 2. Operator profile (name, address, timezone, budget cap)
 3. **second_brain connection** (MCP host URL, Bearer token, comma-separated scopes)
 
-Default scopes: `30-decisions,50-external,70-runbooks,90-inbox`. Issue the token
+Default scopes: `decisions,external,runbooks,inbox`. Issue the token
 on the server with matching scopes:
 
 ```bash
 # on the second_brain VPS
 python3 /opt/second_brain/scripts/issue-agent-token.py \
     --agent <agent-id> \
-    --scopes 30-decisions,50-external,70-runbooks,90-inbox
+    --scopes decisions,external,runbooks,inbox
 ```
 
 Copy the printed token into the installer prompt.
@@ -162,7 +162,7 @@ in `Authorization` header, JSON-RPC 2.0 in the body.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `second_brain-memory_router-on-start.sh` logs "MCP_HOST or AGENT_BEARER unset" | shell didn't `source agent.env` | `source ~/.claude-lab/<agent-id>/.claude/agent.env` before `claude` |
-| recall returns `403` | token has no `90-inbox` (or relevant) scope, or wrong agent | re-issue with `issue-agent-token.py --scopes ...` |
+| recall returns `403` | token has no `inbox` (or relevant) scope, or wrong agent | re-issue with `issue-agent-token.py --scopes ...` |
 | recall returns empty results | second_brain DB has no notes yet | use `create_decision_note` first, or backfill from existing decisions.md |
 | `Stop` hook never fires | `settings.json` not picked up | confirm `claude --project` points at the workspace dir that contains `settings.json` |
 | `trim-hot.sh` skips silently | HOT < 10KB | by design; only compresses once the file grows |
