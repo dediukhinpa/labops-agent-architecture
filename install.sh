@@ -14,13 +14,15 @@
 # оператора — см. вывод скрипта после клонирования, либо README → Quickstart.
 #
 # Использование:
-#   ./install.sh              # деплой + клонирование siblings + self-test + Developer (интерактивно)
+#   ./install.sh              # ОДНА команда: деплой + клонирование siblings + self-test +
+#                             # авторизация Claude Code (claude setup-token, если ещё не
+#                             # входили) + создание Developer (интерактивно). Если siblings
+#                             # ещё не установлены их собственными install.sh — агент
+#                             # стартует в деградированном режиме, см. README → Quickstart.
 #   ./install.sh --test-only  # только self-test
-#   ./install.sh --no-agent   # подготовить + склонировать siblings, но агента не создавать
-#                             # (рекомендуемый порядок: claude setup-token, потом
-#                             #  bash skills/create-agent/new-agent.sh — агент стартует
-#                             #  в деградированном режиме, пока не поставите siblings их
-#                             #  install.sh, см. README → Quickstart)
+#   ./install.sh --no-agent   # подготовить + склонировать siblings, но авторизацию и
+#                             # агента не выполнять (для ручного/отложенного запуска:
+#                             #  claude setup-token && bash skills/create-agent/new-agent.sh)
 #
 # Env overrides:
 #   GITHUB_TOKEN=ghp_xxx      # нужен на чистом VPS для клонирования приватных labops-*
@@ -89,7 +91,7 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 if command -v claude >/dev/null 2>&1; then
   ok "claude найден"
-  echo "    Модель подключается через подписку: если ещё не входили — 'claude setup-token' (Max/Pro)."
+  echo "    Модель подключается через подписку (Max/Pro) — авторизация будет запрошена ниже, перед созданием агента, если ещё не входили."
 else
   die "установка Claude Code не удалась — установите вручную: curl -fsSL https://claude.ai/install.sh | bash"
 fi
@@ -186,6 +188,7 @@ bash "$REPO_DIR/test.sh" || die "self-test провален — установк
 # ── 3. Первый агент — Developer ──────────────────────────────────
 if [ "$MODE" = "prep" ]; then
   say "Подготовка завершена (--no-agent). Чтобы создать первого агента:"
+  echo "    claude setup-token   # один раз, подписка Max/Pro (если ещё не входили)"
   echo "    bash skills/create-agent/new-agent.sh"
   exit 0
 fi
@@ -194,6 +197,18 @@ say "3. Первый агент — Developer (Разработчик)"
 echo "  Developer — кодер и «прораб»: он же дальше поднимает остальных агентов"
 echo "  своим скиллом create-agent. Сейчас проведём его настройку."
 echo
+
+# Авторизация Claude Code — нужна ДО создания агента (иначе агент не достучится
+# до модели). Проверяем по факту наличия credentials, а не спрашиваем на слово.
+if [ -f "$HOME/.claude/.credentials.json" ]; then
+  ok "Claude Code уже авторизован"
+else
+  say "Авторизация Claude Code (подписка Max/Pro)"
+  echo "  Сейчас запустится 'claude setup-token' — войдите один раз."
+  claude setup-token || die "авторизация не завершена — перезапустите ./install.sh, когда будете готовы войти."
+  ok "авторизация пройдена"
+fi
+
 [ -n "$TG" ] && [ ! -d "$TG/plugin/node_modules" ] && \
   warn "labops-tg-plugin ещё не установлен ($TG) — Telegram-канал будет недоступен, пока не выполните: cd $TG && ./install.sh"
 [ -n "$SB" ] && [ ! -x "$SB/.venv/bin/python" ] && \

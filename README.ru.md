@@ -105,51 +105,40 @@ flowchart LR
 
 Это три **отдельных** скрипта `install.sh`, по одному на репозиторий — ни один не запускает установщик другого за вас. `install.sh` из `labops-agent-architecture` ставит только сам себя (зависимости + Claude Code) и **клонирует** (но не устанавливает) два соседних репозитория; их вы ставите каждый своим install.sh сами.
 
-1. **Ставим этот репозиторий, авторизуемся и создаём первого агента:** `bash install.sh --no-agent` — устанавливает tmux/git/curl/jq/unzip + Claude Code (нативный установщик, Node.js не нужен) и клонирует рядом `labops-tg-plugin`/`labops-second-brain` (не устанавливая их). Затем `claude setup-token` (подписка Max/Pro) — авторизуемся один раз, и `bash skills/create-agent/new-agent.sh` — создаём Developer: спросит имя/модель/Telegram-бота, всё развернёт и прогонит smoke (модель по умолчанию `opus`/Opus 4.8). Если соседние репо ещё не установлены — агент стартует в деградированном режиме, установщик подскажет, чего не хватает.
-2. **Ставим `labops-tg-plugin` и настраиваем Telegram-бота:** @BotFather → `/newbot` → токен; свой `user_id` у @userinfobot; затем `cd ~/labops-tg-plugin && ./install.sh`.
-3. **Ставим `labops-second-brain` сами** — либо запускаем его скрипт напрямую, либо отдаём Claude Code агенту (он следует `AGENT.md` и спрашивает подтверждение на разрушительных шагах) — точные команды в блоке ниже.
+1. **Ставим этот репозиторий — одна команда делает всё для него:** `bash install.sh` — устанавливает tmux/git/curl/jq/unzip + Claude Code (нативный установщик, Node.js не нужен), клонирует рядом `labops-tg-plugin`/`labops-second-brain` (не устанавливая их), прогоняет self-test, спрашивает авторизацию (`claude setup-token`, подписка Max/Pro), если вы ещё не входили, и создаёт Developer-агента: спросит имя/модель/Telegram-бота, всё развернёт и прогонит smoke (модель по умолчанию `opus`/Opus 4.8). Если соседние репо ещё не установлены — агент стартует в деградированном режиме, установщик подскажет, чего не хватает. Хотите создать агента позже сами? `bash install.sh --no-agent` останавливается прямо перед авторизацией/созданием агента.
+2. **Ставим `labops-tg-plugin`** — свой репозиторий, свой `install.sh`: см. [его Quickstart](https://github.com/dediukhinpa/labops-tg-plugin#quickstart) (бот через BotFather, `channel.env`, `./install.sh`).
+3. **Ставим `labops-second-brain`** — свой репозиторий, своя установка: см. [его Quickstart](https://github.com/dediukhinpa/labops-second-brain#quickstart) (вручную `scripts/install.sh`, либо отдать Claude Code агенту по `AGENT.md`).
 
 > [!TIP]
 > Для Developer модель по умолчанию `opus` (Opus 4.8). Вы ставите только первого агента — дальше рой растёт сам: Developer разворачивает остальных через скилл `create-agent`.
 
 ```bash
-# 1. Клонируем репозиторий и запускаем установщик с --no-agent — он сам
-#    разворачивает tmux/curl/jq/unzip, Claude Code (нативный, без Node.js)
-#    и клонирует соседние репо, НЕ устанавливая их — установка соседей
-#    ниже, шаги 2-3, вы делаете сами из каждого репо.
-#    Все три labops-* репо могут быть приватными — на чистом VPS без gh/SSH
-#    сначала экспортируйте токен (fine-grained, Contents:Read на все три репо,
-#    выданный от аккаунта владельца репозиториев на GitHub) и используйте
-#    форму клонирования с токеном ниже. Команда работает одинаково для
-#    публичных и приватных репо — запомните её одну.
+# Все три labops-* репо могут быть приватными — на чистом VPS без gh/SSH
+# сначала экспортируйте токен (fine-grained, Contents:Read на все три репо,
+# выданный от аккаунта владельца репозиториев на GitHub) и используйте форму
+# клонирования с токеном ниже. Команда работает одинаково для публичных и
+# приватных репо.
 export GITHUB_TOKEN=ghp_xxx
 git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
   clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
-bash install.sh --no-agent
 
-# 2. Авторизуйтесь один раз (подписка Max/Pro; выбор модели — в диалоге create-agent ниже)
-claude setup-token
+# Одна команда: зависимости + клонирование соседей + self-test +
+# авторизация (claude setup-token, если нужна) + создание Developer-агента
+bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
 
-# 3. Создаём Developer-агента — соседи в этот момент могут быть ещё не
-#    установлены (см. шаги 4-5 ниже); установщик предупредит, чего не хватает.
-bash skills/create-agent/new-agent.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
-
-# 4. Настраиваем Telegram-бота и ставим labops-tg-plugin
-#    (@BotFather → /newbot → токен; свой user_id у @userinfobot)
+# Соседей ставим сами, каждого из его репозитория — порядок не важен,
+# установщик/агент просто подскажут, чего ещё не хватает:
 cd ~/labops-tg-plugin && ./install.sh && cd -
+cd ~/labops-second-brain && sudo bash scripts/install.sh && cd -
+#    ...или отдаём labops-second-brain Claude Code агенту:
+#    cd ~/labops-second-brain && claude
+#    в сессии вставьте:
+#    «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,
+#     Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»
 
-# 5. Ставим labops-second-brain — выбираем вариант:
-#    а) вручную:
-sudo bash ~/labops-second-brain/scripts/install.sh
-#    б) или отдаём Claude Code агенту (спросит подтверждение на разрушительных шагах):
-cd ~/labops-second-brain && claude
-#       в сессии вставьте:
-#       «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,
-#        Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»
-
-# 6. После установки рой расширяется самим Developer-агентом
-#    (он вызывает скилл create-agent по просьбе Оператора)
+# После установки рой расширяется самим Developer-агентом
+# (он вызывает скилл create-agent по просьбе Оператора)
 ```
 
 Если чего-то нет — установка честно перечислит, что **не** настроено (а не покажет ложный зелёный).
@@ -416,11 +405,11 @@ flowchart LR
 
 > `install.sh` в корне репозитория авторится параллельно лидом; ниже — его целевое поведение.
 
-Корневой `install.sh` ставит **первого агента — Developer / Разработчик** «под ключ» end-to-end и в конце прогоняет тесты/smoke. Внутри он использует те же примитивы, что и скилл `create-agent`: скаффолд через `agent-template`, регистрация бота, голос, second_brain-токен, systemd-автозапуск.
+Корневой `install.sh` ставит **только сам репозиторий** — базовые зависимости, Claude Code, клонирование (не установку) двух соседних репо — и в одном и том же запуске, если нужно, авторизует и вызывает `skills/create-agent/new-agent.sh`, который скаффолдит **первого агента — Developer / Разработчик** «под ключ» end-to-end, прогоняя тесты/smoke в конце. Соседей можно ставить до или после — порядок не важен, установщик просто подскажет, чего ещё не хватает. Внутри он использует те же примитивы, что и скилл `create-agent`: скаффолд через `agent-template`, регистрация бота, голос, second_brain-токен, systemd-автозапуск.
 
 **Зависимости (скрипт их устанавливает):**
 
-- **Claude Code** — устанавливается самим `install.sh` через нативный установщик (без Node.js/npm); затем **разово авторизоваться по подписке**: `claude setup-token` (Max/Pro, первая сторона — без third-party риска), сразу после `install.sh --no-agent` и до создания первого агента. Модель агента задаётся в `settings.json` (поле `model`); диалог `create-agent` спрашивает её и для Developer рекомендует **`opus` (Opus 4.8)**. Без авторизации агент стартует под systemd, но не достучится до модели — это ловит smoke-тест (шаг «модель отвечает»).
+- **Claude Code** — устанавливается самим `install.sh` через нативный установщик (без Node.js/npm); затем **разово авторизоваться по подписке**: `install.sh` сам запускает `claude setup-token` (Max/Pro, первая сторона — без third-party риска) прямо перед созданием первого агента, если вы ещё не входили. Модель агента задаётся в `settings.json` (поле `model`); диалог `create-agent` спрашивает её и для Developer рекомендует **`opus` (Opus 4.8)**. Без авторизации агент стартует под systemd, но не достучится до модели — это ловит smoke-тест (шаг «модель отвечает»).
 - **`labops-tg-plugin`** — клонируется в `~/labops-tg-plugin` скриптом `install.sh`; ставите сами своей командой `cd ~/labops-tg-plugin && ./install.sh` (сразу после настройки бота через @BotFather) — это канал, через который агент общается в Telegram. Если создать Developer-агента раньше этого шага, он стартует в деградированном режиме, пока этот репо не установлен.
 - **`labops-second-brain`** — клонируется в `~/labops-second-brain` скриптом `install.sh`; ставите сами — либо запустив напрямую `sudo bash ~/labops-second-brain/scripts/install.sh`, либо отдав Claude Code агенту (`cd ~/labops-second-brain && claude`, затем вставьте промпт из шага 3 «Быстрого старта» — он следует `AGENT.md` и спрашивает подтверждение на разрушительных шагах) — выдаёт агенту Bearer-токен и поднимает MCP `memory`/`recall`/`swarm`.
 - Все три репо `labops-*` могут быть приватными — см. заметку о `GITHUB_TOKEN` в разделе «Быстрый старт» для установки на чистый VPS без `gh`/SSH.
@@ -429,43 +418,32 @@ flowchart LR
 > **Модель и авторизация.** Разово войдите через `claude setup-token` (подписка Max/Pro, первая сторона — без third-party риска). Модель агента задаётся в `settings.json` (поле `model`); для Developer рекомендуется `opus` (Opus 4.8). Без авторизации агент стартует, но не достучится до модели.
 
 ```bash
-# 1. Клонируем репозиторий и запускаем установщик с --no-agent — он сам
-#    разворачивает tmux/curl/jq/unzip, Claude Code (нативный, без Node.js)
-#    и клонирует соседние репо, НЕ устанавливая их — установка соседей
-#    ниже, шаги 2-3, вы делаете сами из каждого репо.
-#    Все три labops-* репо могут быть приватными — на чистом VPS без gh/SSH
-#    сначала экспортируйте токен (fine-grained, Contents:Read на все три репо,
-#    выданный от аккаунта владельца репозиториев на GitHub) и используйте
-#    форму клонирования с токеном ниже. Команда работает одинаково для
-#    публичных и приватных репо — запомните её одну.
+# Клонируем репозиторий. Все три labops-* репо могут быть приватными — на
+# чистом VPS без gh/SSH сначала экспортируйте токен (fine-grained,
+# Contents:Read на все три репо, выданный от аккаунта владельца репозиториев
+# на GitHub) и используйте форму клонирования с токеном ниже. Команда
+# работает одинаково для публичных и приватных репо — запомните её одну.
 export GITHUB_TOKEN=ghp_xxx
 git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
   clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
-bash install.sh --no-agent
 
-# 2. Авторизуйтесь один раз (подписка Max/Pro; выбор модели — в диалоге create-agent ниже)
-claude setup-token
+# Одна команда: зависимости + клонирование соседей (без установки) +
+# self-test + авторизация (claude setup-token, если нужна) + Developer-агент
+bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
 
-# 3. Создаём Developer-агента — соседи в этот момент могут быть ещё не
-#    установлены (см. шаги 4-5 ниже); установщик предупредит, чего не хватает.
-bash skills/create-agent/new-agent.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
-
-# 4. Настраиваем Telegram-бота и ставим labops-tg-plugin
-#    (@BotFather → /newbot → токен; свой user_id у @userinfobot)
+# Соседей ставим сами, каждого из его репозитория — порядок не важен,
+# установщик/агент просто подскажут, чего ещё не хватает:
 cd ~/labops-tg-plugin && ./install.sh && cd -
+cd ~/labops-second-brain && sudo bash scripts/install.sh && cd -
+#    ...или отдаём labops-second-brain Claude Code агенту:
+#    cd ~/labops-second-brain && claude
+#    в сессии вставьте:
+#    «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,
+#     Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»
 
-# 5. Ставим labops-second-brain — выбираем вариант:
-#    а) вручную:
-sudo bash ~/labops-second-brain/scripts/install.sh
-#    б) или отдаём Claude Code агенту (спросит подтверждение на разрушительных шагах):
-cd ~/labops-second-brain && claude
-#       в сессии вставьте:
-#       «Прочитай и выполни инструкции из AGENT.md — разверни Second Brain,
-#        Path A (VPS + inbox-agent). Подтверждай со мной каждый деструктивный шаг.»
-
-# 6. После установки рой расширяется самим Developer-агентом
-#    (он вызывает скилл create-agent по просьбе Оператора)
+# После установки рой расширяется самим Developer-агентом
+# (он вызывает скилл create-agent по просьбе Оператора)
 ```
 
 Скаффолд одного воркспейса без полного развёртывания — через `agent-template/install.sh` (см. [`agent-template/README.md`](agent-template/README.md)).
