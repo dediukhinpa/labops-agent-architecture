@@ -32,6 +32,12 @@ ORCH_DIR="$REPO_DIR/orchestration"
 # подхватывается. Подмешиваем явно, чтобы claude находился и здесь, и в
 # smoke-тесте (7d) ниже.
 export PATH="$HOME/.local/bin:$PATH"
+# Токен обычно уже сохранён install.sh (claude setup-token не пишет
+# .credentials.json — только печатает токен один раз). Подхватываем его и
+# при автономном запуске new-agent.sh (не через install.sh).
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -f "$LAB_DIR/shared/secrets/claude-oauth-token" ]; then
+  export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$LAB_DIR/shared/secrets/claude-oauth-token")"
+fi
 
 C='\033[0;36m'; G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; N='\033[0m'
 say()  { printf "\n${C}▶ %s${N}\n" "$*"; }
@@ -311,4 +317,8 @@ if [ "${#DEGRADED[@]}" -gt 0 ]; then
   for d in "${DEGRADED[@]}"; do printf "     • %s\n" "$d"; done
 fi
 echo "   Воркспейс: $WORKSPACE"
-echo "   Запуск вручную: source $WORKSPACE/agent.env && claude --project $WORKSPACE"
+if [ -f "$LAB_DIR/shared/secrets/claude-oauth-token" ]; then
+  echo "   Запуск вручную: source $WORKSPACE/agent.env && export CLAUDE_CODE_OAUTH_TOKEN=\$(cat $LAB_DIR/shared/secrets/claude-oauth-token) && claude --project $WORKSPACE"
+else
+  echo "   Запуск вручную: source $WORKSPACE/agent.env && claude --project $WORKSPACE"
+fi

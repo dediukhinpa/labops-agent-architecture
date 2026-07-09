@@ -312,14 +312,39 @@ echo "  своим скиллом create-agent. Сейчас проведём е
 echo
 
 # Авторизация Claude Code — нужна ДО создания агента (иначе агент не достучится
-# до модели). Проверяем по факту наличия credentials, а не спрашиваем на слово.
-if [ -f "$HOME/.claude/.credentials.json" ]; then
-  ok "Claude Code уже авторизован"
+# до модели). "claude setup-token" НЕ пишет ~/.claude/.credentials.json — он
+# печатает долгоживущий OAuth-токен ОДИН РАЗ и просит сохранить его самому
+# через "export CLAUDE_CODE_OAUTH_TOKEN=...". Храним его в shared/secrets —
+# тем же способом, что и остальные секреты агентов (GROQ, Telegram) — чтобы
+# не спрашивать вход заново на каждом запуске/для каждого нового агента.
+CLAUDE_TOKEN_FILE="$LAB_DIR/shared/secrets/claude-oauth-token"
+if [ -f "$CLAUDE_TOKEN_FILE" ]; then
+  export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$CLAUDE_TOKEN_FILE")"
+  ok "Claude Code уже авторизован (токен из $CLAUDE_TOKEN_FILE)"
+elif [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+  mkdir -p "$(dirname "$CLAUDE_TOKEN_FILE")"
+  umask 077
+  printf '%s' "$CLAUDE_CODE_OAUTH_TOKEN" > "$CLAUDE_TOKEN_FILE"
+  chmod 600 "$CLAUDE_TOKEN_FILE"
+  ok "Claude Code уже авторизован (CLAUDE_CODE_OAUTH_TOKEN из окружения, сохранён в $CLAUDE_TOKEN_FILE)"
 else
   say "Авторизация Claude Code (подписка Max/Pro)"
   echo "  Сейчас запустится 'claude setup-token' — войдите один раз."
+  echo "  В конце он покажет строку вида 'export CLAUDE_CODE_OAUTH_TOKEN=<токен>' —"
+  echo "  это единственный момент, когда токен виден. Скопируйте сам <токен>"
+  echo "  (без \"export CLAUDE_CODE_OAUTH_TOKEN=\") и вставьте его в запрос ниже."
   claude setup-token || die "авторизация не завершена — перезапустите ./install.sh, когда будете готовы войти."
-  ok "авторизация пройдена"
+  TOKEN_VAL=""
+  while [ -z "$TOKEN_VAL" ]; do
+    read -rp "  Вставьте токен: " TOKEN_VAL
+    [ -z "$TOKEN_VAL" ] && warn "токен не может быть пустым"
+  done
+  mkdir -p "$(dirname "$CLAUDE_TOKEN_FILE")"
+  umask 077
+  printf '%s' "$TOKEN_VAL" > "$CLAUDE_TOKEN_FILE"
+  chmod 600 "$CLAUDE_TOKEN_FILE"
+  export CLAUDE_CODE_OAUTH_TOKEN="$TOKEN_VAL"
+  ok "токен сохранён в $CLAUDE_TOKEN_FILE"
 fi
 
 [ -n "$TG" ] && [ ! -d "$TG/plugin/node_modules" ] && \

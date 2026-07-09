@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Запускается из-под systemd (watchdog.sh) — минимальный PATH без ~/.local/bin,
+# где нативный claude ставится. Без этого "command -v claude" ниже не находит
+# бинарник, и агент вообще не поднимается под systemd.
+export PATH="$HOME/.local/bin:$PATH"
+
 source "$(dirname "$0")/lib/agents.sh"
 
 AGENT="$1"
@@ -27,12 +32,20 @@ if [ -z "${TELEGRAM_WEBHOOK_PORT:-}" ]; then
   echo "Unknown agent: $AGENT (нет ни в channel.env, ни в ростере)" >&2; exit 1
 fi
 
-# Секреты: сначала channel.env (уже в окружении после source), затем .claude/secrets/.
+# Секреты: сначала channel.env (уже в окружении после source), затем
+# .claude/secrets/ (per-agent), затем shared/secrets/ (кросс-агентные — GROQ
+# и Claude-токен обычно один на всех агентов, кладёт их туда new-agent.sh /
+# install.sh, чтобы не спрашивать заново на каждого нового агента).
 SECRETS="$CLAUDE_LAB/$AGENT/.claude/secrets"
+SHARED_SECRETS="$CLAUDE_LAB/shared/secrets"
 read_secret_opt() { local p="$SECRETS/$1"; [ -r "$p" ] && cat "$p" || true; }
+read_shared_secret_opt() { local p="$SHARED_SECRETS/$1"; [ -r "$p" ] && cat "$p" || true; }
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-$(read_secret_opt telegram-bot-token)}"
 TELEGRAM_WEBHOOK_TOKEN="${TELEGRAM_WEBHOOK_TOKEN:-$(read_secret_opt telegram-webhook-token)}"
 GROQ_API_KEY="${GROQ_API_KEY:-$(read_secret_opt groq-api-key)}"
+GROQ_API_KEY="${GROQ_API_KEY:-$(read_shared_secret_opt groq-api-key)}"
+CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-$(read_secret_opt claude-oauth-token)}"
+CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-$(read_shared_secret_opt claude-oauth-token)}"
 TELEGRAM_STATE_DIR="${TELEGRAM_STATE_DIR:-$CLAUDE_LAB/shared/state/$AGENT/telegram}"
 TELEGRAM_ALLOWED_USER_IDS="${TELEGRAM_ALLOWED_USER_IDS:-}"
 
@@ -67,7 +80,8 @@ tmux new-session -d -s "$SESSION" -c "$WORKSPACE" \
   -e TELEGRAM_WEBHOOK_PORT="$TELEGRAM_WEBHOOK_PORT" \
   -e TELEGRAM_WEBHOOK_TOKEN="$TELEGRAM_WEBHOOK_TOKEN" \
   -e GROQ_API_KEY="$GROQ_API_KEY" \
-  -e PATH="$BUN_BIN_DIR:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  -e CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
+  -e PATH="$HOME/.local/bin:$BUN_BIN_DIR:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
   "$CLAUDE_BIN" \
     --dangerously-skip-permissions \
     --dangerously-load-development-channels server:labops-channel
