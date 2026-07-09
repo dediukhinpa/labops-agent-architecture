@@ -5,14 +5,14 @@
       "url": "${MCP_HOST}/memory/mcp",
       "headers": { "Authorization": "Bearer ${AGENT_BEARER}" }
     },
-    "second_brain-recall": {
+    "second_brain-memory_router": {
       "type": "http",
-      "url": "${MCP_HOST}/recall/mcp",
+      "url": "${MCP_HOST}/memory_router/mcp",
       "headers": { "Authorization": "Bearer ${AGENT_BEARER}" }
     },
-    "second_brain-swarm": {
+    "second_brain-agent_router": {
       "type": "http",
-      "url": "${MCP_HOST}/swarm/mcp",
+      "url": "${MCP_HOST}/agent_router/mcp",
       "headers": { "Authorization": "Bearer ${AGENT_BEARER}" }
     }
   }

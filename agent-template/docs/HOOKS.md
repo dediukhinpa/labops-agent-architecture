@@ -291,7 +291,7 @@ Creates atomic commits after each Claude response. Combine with `claude -w featu
       "matcher": "",
       "hooks": [{
         "type": "command",
-        "command": "bash scripts/second_brain-recall-on-start.sh >> /tmp/second_brain-recall-on-start.log 2>&1 &",
+        "command": "bash scripts/second_brain-memory_router-on-start.sh >> /tmp/second_brain-memory_router-on-start.log 2>&1 &",
         "timeout": 10
       }]
     }]
@@ -299,7 +299,7 @@ Creates atomic commits after each Claude response. Combine with `claude -w featu
 }
 ```
 
-Uploads HOT+WARM memory to second_brain for semantic search across sessions. The script (`second_brain-recall-on-start.sh`) uses `temp_upload` + `add_resource` to create indexed resources at `second_brain://notes/{agent}-sessions/{date}`. Runs in background (`&`) so it doesn't block the session exit. Combine with a daily cron (`30 6 * * *`) for redundancy. See MEMORY.md for full details.
+Uploads HOT+WARM memory to second_brain for semantic search across sessions. The script (`second_brain-memory_router-on-start.sh`) uses `temp_upload` + `add_resource` to create indexed resources at `second_brain://notes/{agent}-sessions/{date}`. Runs in background (`&`) so it doesn't block the session exit. Combine with a daily cron (`30 6 * * *`) for redundancy. See MEMORY.md for full details.
 
 ### Inject context on session start
 

@@ -1,7 +1,7 @@
 # second_brain Doctor
 
 Agent-facing diagnostic skill at `skills/second_brain-doctor/`. Runs from an agent's own machine and
-checks that the agent's second_brain wiring is healthy: MCP connectivity, identity, recall, swarm,
+checks that the agent's second_brain wiring is healthy: MCP connectivity, identity, memory_router, agent_router,
 hooks parity, webhooks, MCP URL security topology, the per-agent GitHub repo, and the skill's
 own install state.
 
@@ -13,7 +13,7 @@ agent experiences it.
 
 Agents need a safe, deterministic self-check for MCP, hooks, webhooks, identity, and shared
 memory from their own machine — without leaking secrets and without mutating state. When an agent
-cannot recall, notify, or receive tasks, the doctor answers "is it me or the server?" before
+cannot recall via memory_router, notify via agent_router, or receive tasks, the doctor answers "is it me or the server?" before
 anyone escalates to the host.
 
 ## How it works
@@ -81,7 +81,7 @@ not make the run fail.
 Example table:
 
 ```text
-[PASS] G1.mcp_tools_list              recall=82ms swarm=77ms memory=91ms tasks=skip
+[PASS] G1.mcp_tools_list              memory_router=82ms agent_router=77ms memory=91ms tasks=skip
 [WARN] G6.stop_hook_recent_fresh      last stop-hook marker is 31h old
         -> Start a session/turn or repair Stop hook.
 [FAIL] G8.backend_ports_closed        8767 reachable on public backend IP
@@ -94,10 +94,10 @@ Verdict: FAIL (34 pass, 6 warn, 1 fail, 5 skip) -- output redacted and safe to p
 
 | Group | Covers | Notes |
 |---|---|---|
-| G1 | MCP config + connectivity: required servers present (`tasks` optional), specs well-formed, `tools/list`, recall/swarm stats. | Fail on timeout/401/403/5xx/protocol error. |
+| G1 | MCP config + connectivity: required servers present (`tasks` optional), specs well-formed, `tools/list`, memory_router/agent_router stats. | Fail on timeout/401/403/5xx/protocol error. |
 | G2 | Identity + token: unauth request denied (401/403), agent identity resolved, bearer non-placeholder/consistency, redaction selftest. | A `200` without Bearer is a fail. |
-| G3 | Swarm: recent acked ratio, this agent's pending depth, fetch a recent delivery by id. | Warns on empty data. |
-| G4 | Recall: `recall` probe, `recent`, `reindex_check` drift. | `reindex_check` exception (e.g. OperationalError) is a fail. |
+| G3 | Agent Router: recent acked ratio, this agent's pending depth, fetch a recent delivery by id. | Warns on empty data. |
+| G4 | Memory Router: `recall` probe, `recent`, `reindex_check` drift. | `reindex_check` exception (e.g. OperationalError) is a fail. |
 | G5 | Memory: write tools registered, tool schemas readable, write probe held as `skip` (read-only default). | True write is manual only. |
 | G6 | Hooks parity: manifest loaded, settings layers parse, no `disableAllHooks`, expected events registered, command paths exist, scripts executable, plugin refs enabled, event names valid, not local-only, basenames match, blocking hooks not async, Stop freshness, PreCompact snapshot. | Critical — a missing hook silently breaks a feature. |
 | G7 | Webhooks: listener `/healthz`, auth modes configured, platform service loaded, token file safe (mode 600, non-empty, no trailing-newline risk), delivery errors. | Missing listener is warn/skip when none is expected. |
@@ -156,7 +156,7 @@ provided. Otherwise it warns rather than false-passing.
 | `tools_list` fail with HTTP 401/403 | G1/G2 | Bearer token wrong/placeholder in `.mcp.json`; reissue and re-render outside chat. |
 | `tools_list` fail with timeout/URLError | G1/G8 | Network path or service down; check URL host reachability and host service health. |
 | `auth_without_bearer_denied` fail (200) | G2/G8 | MCP endpoint exposed without auth; fix AuthCaptureMiddleware/proxy before exposing. |
-| `recall_reindex_check` fail | G4 | Re-run ingest/reindex on the second_brain host; inspect recall dependencies (sqlite/aiosqlite). |
+| `memory_router_reindex_check` fail | G4 | Re-run ingest/reindex on the second_brain host; inspect memory_router dependencies (sqlite/aiosqlite). |
 | `stop_hook_recent_fresh` warn | G6 | A quiet agent; start a session/turn, or repair the Stop hook if it never fires. |
 | `hook_scripts_executable` fail | G6 | `--fix` to `chmod +x`, or do it manually. |
 | `webhook_listener_healthz` fail | G7 | Start Hermes/jarvis listener or fix the port. |
@@ -164,7 +164,7 @@ provided. Otherwise it warns rather than false-passing.
 | `github_repo_exists_private` fail (missing) | G9 | `--fix` to `gh repo create --private`, or create manually. |
 | `skill_symlinked` fail | G10 | `--fix` to symlink, or `ln -s "$PWD/skills/second_brain-doctor" ~/.claude/skills/second_brain-doctor`. |
 
-Rerun a single group with `--group G<n>`. Manual side-effect probes (memory write, swarm
+Rerun a single group with `--group G<n>`. Manual side-effect probes (memory write, agent_router
 self-notify) live in `references/manual-write-probes.md` and are never run by the doctor.
 
 ---
@@ -185,7 +185,7 @@ applying this to a live agent requires the boss's/operator's approval. Target te
 - When you discover durable facts, decisions, fixes, or reusable procedures, consider saving a concise note.
 - Prefer high-signal summaries over transcript dumps.
 - Include source and confidence when saving knowledge.
-- Use swarm when another agent should wake up or own a handoff.
+- Use agent_router when another agent should wake up or own a handoff.
 - Use tasks when work needs status, assignee, review, or a durable next action.
 - Local files are private working memory; second_brain is the cross-agent layer.
 - If second_brain is unavailable, continue the task and note what should be synced later.

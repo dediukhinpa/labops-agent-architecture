@@ -96,7 +96,7 @@ EOF
   echo "[VAULT] Use: second_brain-memory.create_decision_note / _runbook_note / _error_pattern_note"
   echo ""
   echo "[VAULT] After adding → send confirmation:"
-  echo "[VAULT]   second_brain-swarm.notify(to_agent='<coordinator>', payload={'task': 'vault_audit_complete', 'agent': '$AGENT_NAME'})"
+  echo "[VAULT]   second_brain-agent_router.notify(to_agent='<coordinator>', payload={'task': 'vault_audit_complete', 'agent': '$AGENT_NAME'})"
 
   # ============================================================================
   # SUMMARY

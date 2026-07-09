@@ -208,11 +208,11 @@ FAIL=0
 # 7a. второй мозг отвечает
 if curl -fsS -H "Authorization: Bearer $AGENT_BEARER" \
         -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" \
-        -X POST "$MCP_HOST/recall/mcp" \
+        -X POST "$MCP_HOST/memory_router/mcp" \
         --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' >/dev/null 2>&1; then
-  ok "second_brain recall отвечает"
+  ok "second_brain memory_router отвечает"
 else
-  warn "second_brain recall недоступен на $MCP_HOST (проверьте токен/хост)"; FAIL=1
+  warn "second_brain memory_router недоступен на $MCP_HOST (проверьте токен/хост)"; FAIL=1
 fi
 # 7b. Telegram-бот валиден
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then

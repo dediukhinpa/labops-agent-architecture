@@ -79,7 +79,7 @@
 - NOT loaded at startup
 - Accessed via curl when old context needed (>24h)
 - Each agent has own namespace (User header)
-- Search: `POST ${MCP_HOST}/recall/mcp (JSON-RPC tools/call recall)`
+- Search: `POST ${MCP_HOST}/memory_router/mcp (JSON-RPC tools/call recall)`
 - Stores embeddings of past conversations
 - Install: `pip install second_brain --upgrade`
 
@@ -228,13 +228,13 @@ Script logic (pure bash, no model):
 0 6 * * * /path/to/compress-warm.sh
 
 # 4. Sync to second_brain: HOT+WARM -> semantic search (bash + curl)
-30 6 * * * /path/to/second_brain-recall-on-start.sh
+30 6 * * * /path/to/second_brain-memory_router-on-start.sh
 
 # 5. Archive COLD: MEMORY.md >5KB -> archive/YYYY-MM.md (bash)
 0 21 * * * /path/to/memory-rotate.sh
 ```
 
-Order matters: rotate-warm first (clears old WARM entries), then trim-hot (adds new entries to WARM), then compress-warm (re-compresses if WARM grew too large), then second_brain-recall-on-start (uploads compressed state to second_brain).
+Order matters: rotate-warm first (clears old WARM entries), then trim-hot (adds new entries to WARM), then compress-warm (re-compresses if WARM grew too large), then second_brain-memory_router-on-start (uploads compressed state to second_brain).
 
 ## second_brain: Triggers and Data Flow
 
@@ -242,11 +242,11 @@ second_brain data is synced via two mechanisms: **batch sync** (recommended) and
 
 ### Method 1: Batch sync via cron + Stop hook (recommended)
 
-A shell script (`second_brain-recall-on-start.sh`) collects HOT + WARM memory and uploads to second_brain as a single resource. Runs on two triggers:
+A shell script (`second_brain-memory_router-on-start.sh`) collects HOT + WARM memory and uploads to second_brain as a single resource. Runs on two triggers:
 
 | Trigger | When | How |
 |---------|------|-----|
-| **Cron** | Daily at 06:30 UTC (after memory rotation) | `30 6 * * * bash scripts/second_brain-recall-on-start.sh` |
+| **Cron** | Daily at 06:30 UTC (after memory rotation) | `30 6 * * * bash scripts/second_brain-memory_router-on-start.sh` |
 | **Stop hook** | Every time Claude Code finishes responding | `settings.json` → `hooks.Stop` |
 
 **What the script does:**
@@ -270,7 +270,7 @@ A shell script (`second_brain-recall-on-start.sh`) collects HOT + WARM memory an
       "matcher": "",
       "hooks": [{
         "type": "command",
-        "command": "bash scripts/second_brain-recall-on-start.sh >> /tmp/second_brain-recall-on-start.log 2>&1 &",
+        "command": "bash scripts/second_brain-memory_router-on-start.sh >> /tmp/second_brain-memory_router-on-start.log 2>&1 &",
         "timeout": 10
       }]
     }]
@@ -306,7 +306,7 @@ Gateway can push to second_brain after **every message** where:
 Both methods produce embeddings searchable via the same API:
 
 ```bash
-curl -X POST "${MCP_HOST}/recall/mcp" \
+curl -X POST "${MCP_HOST}/memory_router/mcp" \
   -H "X-API-Key: $KEY" \
   -H "X-second_brain-Account: $ACCOUNT" \
   -H "X-second_brain-User: $AGENT" \

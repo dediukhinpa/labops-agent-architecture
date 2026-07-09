@@ -4,7 +4,7 @@ Static fixtures for `tests/test_second_brain_doctor_skill.py`. No network, no re
 
 | Fixture | Scenario it exercises |
 |---|---|
-| `mcp-valid.json` | Well-formed `.mcp.json` with memory/recall/swarm (no tasks). |
+| `mcp-valid.json` | Well-formed `.mcp.json` with memory/memory_router/agent_router (no tasks). |
 | `mcp-malformed.json` | Truncated JSON — explicit `--mcp-json` must exit 2. |
 | `settings-complete.json` | All three expected events registered, portable, non-async. Green G6 baseline. |
 | `settings-missing-hook.json` | Only SessionStart registered — Stop/PreCompact missing (C025). |

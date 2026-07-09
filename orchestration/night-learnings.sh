@@ -32,17 +32,17 @@ mkdir -p "$LOG_DIR"
     fi
 
     # Извлеки token (простой парсинг JSON)
-    BEARER_TOKEN=$(grep -A2 "second_brain-swarm" "$TOKEN_FILE" | grep "Authorization" | grep -oP '(?<=Bearer )[^"]+' | head -1)
+    BEARER_TOKEN=$(grep -A2 "second_brain-agent_router" "$TOKEN_FILE" | grep "Authorization" | grep -oP '(?<=Bearer )[^"]+' | head -1)
 
     if [ -z "$BEARER_TOKEN" ]; then
       echo "  ⚠️ No bearer token for $agent, skipping"
       continue
     fi
 
-    # Payload для swarm.notify
+    # Payload для agent_router.notify
     PAYLOAD=$(cat <<EOF
 {
-  "method": "swarm.notify",
+  "method": "agent_router.notify",
   "params": {
     "arguments": {
       "to_agent": "$agent",
@@ -59,7 +59,7 @@ mkdir -p "$LOG_DIR"
 EOF
 )
 
-    # Отправляй swarm.notify через MCP
+    # Отправляй agent_router.notify через MCP
     echo "  → Sending notification to $agent..."
     RESPONSE=$(curl -s -X POST "$SECOND_BRAIN_SWARM_URL" \
       -H "Authorization: Bearer $BEARER_TOKEN" \

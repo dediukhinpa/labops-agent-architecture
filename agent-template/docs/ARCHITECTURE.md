@@ -96,7 +96,7 @@ MEMORY WRITE (parallel, after every message)
     |    - Emergency trim: if >20KB, keep last 600 lines
     |
     | B. second_brain: synced via Stop hook + daily cron (NOT per-message)
-    |    - Stop hook: runs second_brain-recall-on-start.sh on session end (background)
+    |    - Stop hook: runs second_brain-memory_router-on-start.sh on session end (background)
     |    - Cron: 06:30 UTC daily (after memory rotation scripts)
     |    - Uploads HOT (last 10 entries) + WARM (full) as markdown
     |    - Method: temp_upload -> add_resource to second_brain://notes/
@@ -170,7 +170,7 @@ ${MCP_HOST} (or Tailscale IP — check ss -tlnp | grep 1933)
 │   └── User: jarvis         (own embeddings)
 │
 ├── Write: batch sync (NOT per-message)
-│   Trigger 1: Stop hook (runs second_brain-recall-on-start.sh on session end)
+│   Trigger 1: Stop hook (runs second_brain-memory_router-on-start.sh on session end)
 │   Trigger 2: Cron 06:30 UTC daily (after memory rotation)
 │   Method:
 │     POST /memory/mcp (create_external_note via JSON-RPC)     → upload markdown
@@ -179,7 +179,7 @@ ${MCP_HOST} (or Tailscale IP — check ss -tlnp | grep 1933)
 │   Content: last 10 HOT entries + full WARM decisions
 │
 └── Search: when old context needed (>24h)
-    POST ${MCP_HOST}/recall/mcp (JSON-RPC tools/call recall)
+    POST ${MCP_HOST}/memory_router/mcp (JSON-RPC tools/call recall)
     {"query": "topic", "limit": 10}
 ```
 
@@ -237,13 +237,13 @@ L4     -> second_brain, batch sync via Stop hook + daily cron (06:30 UTC)
 0 6 * * * /path/to/compress-warm.sh
 
 # 4. Sync to second_brain: HOT+WARM -> semantic search (bash + curl)
-30 6 * * * /path/to/second_brain-recall-on-start.sh
+30 6 * * * /path/to/second_brain-memory_router-on-start.sh
 
 # 5. Archive COLD: MEMORY.md >5KB -> archive/YYYY-MM.md (bash)
 0 21 * * * /path/to/memory-rotate.sh
 ```
 
-Order: rotate-warm (clear old) -> trim-hot (add new to WARM) -> compress-warm (re-compress) -> second_brain-recall-on-start (upload to L4).
+Order: rotate-warm (clear old) -> trim-hot (add new to WARM) -> compress-warm (re-compress) -> second_brain-memory_router-on-start (upload to L4).
 
 ### Gateway commands for memory
 

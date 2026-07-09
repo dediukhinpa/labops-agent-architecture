@@ -46,8 +46,8 @@
 ### 🧠 second_brain MCP (Shared Memory)
 
 - ✅ `second_brain-memory` — сохранение decisions/runbooks/patterns
-- ✅ `second_brain-recall` — поиск в shared brain всех агентов
-- ✅ `second_brain-swarm` — inter-agent communication
+- ✅ `second_brain-memory_router` — поиск в shared brain всех агентов
+- ✅ `second_brain-agent_router` — inter-agent communication
 - ✅ `second_brain-tasks` — task queue и heartbeats
 - 📁 Config: `~/.claude-lab/developer/.claude/.mcp.json`
 
@@ -57,14 +57,14 @@
 
 ### 🔄 Inter-Agent Communication (Swarm Notify)
 
-- ✅ `swarm.notify()` для отправки задач между агентами
-- ✅ `swarm.broadcast()` для отправки нескольким
-- ✅ `swarm.escalate()` для срочных задач
+- ✅ `agent_router.notify()` для отправки задач между агентами
+- ✅ `agent_router.broadcast()` для отправки нескольким
+- ✅ `agent_router.escalate()` для срочных задач
 - ✅ Boot sequence гарантирует delivery
 
 **Пример:**
 ```python
-developer → swarm.notify(to_agent="researcher", task="Review wiki structure")
+developer → agent_router.notify(to_agent="researcher", task="Review wiki structure")
 researcher получит при SessionStart, даже если webhook был down
 ```
 
@@ -110,8 +110,8 @@ researcher получит при SessionStart, даже если webhook был 
 
 ```
 second_brain-memory      → Сохранение фактов (decisions, runbooks, patterns)
-second_brain-recall      → Поиск в shared brain
-second_brain-swarm       → Отправка задач между агентами
+second_brain-memory_router → Поиск в shared brain
+second_brain-agent_router  → Отправка задач между агентами
 second_brain-tasks       → Task queue, heartbeats, status
 labops-channel      → Telegram webhooks и message handling
 ```
@@ -289,7 +289,7 @@ All systems are go! You can now:
 
 1. ✅ Send **voice messages** to any agent and they'll transcribe + execute
 2. ✅ Get **read receipts** (👀) automatically when agents receive messages
-3. ✅ Delegate **tasks** between agents via swarm.notify()
+3. ✅ Delegate **tasks** between agents via agent_router.notify()
 4. ✅ Use **shared brain** (second_brain) across all 3 agents
 5. ✅ Get **automatic learnings** every night at 02:00
 

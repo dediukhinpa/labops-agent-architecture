@@ -50,7 +50,7 @@ bash skills/create-agent/new-agent.sh
 Скрипт по шагам: соберёт параметры → выдаст агенту токен во втором мозге → скаффолдит
 воркспейс (`agent-template`, неинтерактивно) → заведёт Telegram-канал из `labops-tg-plugin`
 (`channel.env`, привязка плагина) → подключит голос (`groq-voice`) → поставит автостарт
-(`systemd` + `watchdog`) → smoke: `recall tools/list`, Telegram `getMe`, активность сервиса.
+(`systemd` + `watchdog`) → smoke: `memory_router tools/list`, Telegram `getMe`, активность сервиса.
 
 Можно заранее экспортировать ответы, чтобы скрипт не переспрашивал, напр.:
 ```bash

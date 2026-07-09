@@ -839,11 +839,11 @@ def _coerce_delivery_list(payload: Any) -> list[dict[str, Any]]:
 def _check_webhook_delivery_errors(ctx: "DoctorContext") -> CheckResult:
     """C039 — recent self-addressed deliveries show no recurring webhook errors."""
     name = "G7.webhook_delivery_errors"
-    swarm = ctx.server("swarm")
+    swarm = ctx.server("agent_router")
     if swarm is None:
         return CheckResult(
             name=name, status="skip",
-            message=redact.redact("swarm server not configured"),
+            message=redact.redact("agent_router server not configured"),
         )
     if not ctx.agent:
         return CheckResult(
@@ -868,7 +868,7 @@ def _check_webhook_delivery_errors(ctx: "DoctorContext") -> CheckResult:
         return CheckResult(
             name=name, status="warn",
             message=redact.redact(f"could not list recent deliveries: {exc}"),
-            remediation="Verify swarm MCP reachability (see G1).",
+            remediation="Verify agent_router MCP reachability (see G1).",
         )
 
     rows = _coerce_delivery_list(payload)
@@ -891,7 +891,7 @@ def _check_webhook_delivery_errors(ctx: "DoctorContext") -> CheckResult:
         )
 
     # Map the first recognizable error pattern for a remediation hint.
-    hint = "Inspect swarm worker logs; map ConnectionRefused/401/404/Timeout/502/DNS."
+    hint = "Inspect agent_router worker logs; map ConnectionRefused/401/404/Timeout/502/DNS."
     matched: str | None = None
     for row in failed:
         blob = redact.redact(
@@ -928,7 +928,7 @@ def _check_webhook_delivery_errors(ctx: "DoctorContext") -> CheckResult:
 
 def _primary_public_server(ctx: "DoctorContext") -> "McpServer | None":
     """Pick a representative non-local server for topology checks."""
-    for svc in ("memory", "recall", "swarm", "tasks"):
+    for svc in ("memory", "memory_router", "agent_router", "tasks"):
         srv = ctx.server(svc)
         if srv and srv.url:
             return srv

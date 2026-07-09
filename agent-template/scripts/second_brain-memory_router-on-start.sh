@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# second_brain-recall-on-start.sh -- session-start helper
+# second_brain-memory_router-on-start.sh -- session-start helper
 # Pulls top-N recalls from shared second_brain MCP that match the last handoff topic,
 # prepends a summary block to core/hot/recent.md.
 #
 # Replaces the upstream session-sync script from public-architecture-claude-code.
 #
-# Usage:   bash scripts/second_brain-recall-on-start.sh
+# Usage:   bash scripts/second_brain-memory_router-on-start.sh
 # Env:
 #   AGENT_WORKSPACE  -- absolute path to .claude workspace; default: derive from script path
 #   AGENT_ID         -- short id; default: derived from workspace parent dir
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS="${AGENT_WORKSPACE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 AGENT_ID="${AGENT_ID:-$(basename "$(dirname "$WS")")}"
 LOGDIR="${HOME}/.claude-lab/${AGENT_ID}/logs"
-LOG="$LOGDIR/second_brain-recall.log"
+LOG="$LOGDIR/second_brain-memory_router.log"
 HANDOFF="$WS/core/hot/handoff.md"
 RECENT="$WS/core/hot/recent.md"
 LIMIT="${RECALL_LIMIT:-5}"
@@ -31,7 +31,7 @@ touch "$RECENT"
 
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $1" >> "$LOG"; }
 
-log "=== second_brain-recall-on-start.sh START ==="
+log "=== second_brain-memory_router-on-start.sh START ==="
 
 if [ -z "${MCP_HOST:-}" ] || [ -z "${AGENT_BEARER:-}" ]; then
     log "MCP_HOST or AGENT_BEARER unset; skipping recall"
@@ -75,8 +75,8 @@ print(json.dumps(payload))
 PY
 )
 
-# 3) POST to second_brain recall MCP
-RESPONSE=$(curl -sS -m 15 -X POST "${MCP_HOST%/}/recall/mcp" \
+# 3) POST to second_brain memory_router MCP
+RESPONSE=$(curl -sS -m 15 -X POST "${MCP_HOST%/}/memory_router/mcp" \
     -H "Authorization: Bearer ${AGENT_BEARER}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
@@ -134,7 +134,7 @@ TS=$(date -u +%Y-%m-%d\ %H:%M)
 # 5) Prepend block to recent.md
 TMP=$(mktemp)
 {
-    echo "### ${TS} [second_brain-recall]"
+    echo "### ${TS} [second_brain-memory_router]"
     echo ""
     echo "Session start -- relevant second_brain recalls (${COUNT}):"
     echo ""
@@ -147,4 +147,4 @@ TMP=$(mktemp)
 mv "$TMP" "$RECENT"
 
 log "Prepended ${COUNT} recall hits to $RECENT"
-log "=== second_brain-recall-on-start.sh DONE ==="
+log "=== second_brain-memory_router-on-start.sh DONE ==="

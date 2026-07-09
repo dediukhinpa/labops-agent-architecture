@@ -3,7 +3,7 @@
 Step-by-step setup for an agent workspace wired to a shared second_brain MCP server.
 
 This is the "client-side" of the public-second_brain-agentos distro. The "server-side"
-(memory MCP, recall MCP, swarm MCP, Postgres + pgvector, Caddy + TLS) is
+(memory MCP, memory_router MCP, agent_router MCP, Postgres + pgvector, Caddy + TLS) is
 documented in [../docs/SERVER-SETUP.md](../docs/SERVER-SETUP.md) and installed
 via [../scripts/install-vps.sh](../scripts/install-vps.sh). You **must** have a
 running second_brain server (or know its `MCP_HOST` URL and have a Bearer token for
@@ -14,11 +14,11 @@ your agent) before running `install.sh` here.
 `agent-template/install.sh` creates `~/.claude-lab/<agent-id>/.claude/`. Inside,
 a four-layer memory pyramid (IDENTITY -> WARM -> HOT -> COLD) lives as Markdown
 files. A `.mcp.json` points Claude Code at three remote MCP servers --
-**memory** (write decisions / runbooks / external notes), **recall** (read
-shared semantic memory), **swarm** (notify other agents) -- all behind a single
+**memory** (write decisions / runbooks / external notes), **memory_router** (read
+shared semantic memory), **agent_router** (notify other agents) -- all behind a single
 `${MCP_HOST}` Bearer-authenticated endpoint. Three local hooks
 (`session-start`, `stop`, `precompact`) keep the local memory fresh; an
-optional `second_brain-recall-on-start.sh` pulls top-N relevant items from the
+optional `second_brain-memory_router-on-start.sh` pulls top-N relevant items from the
 shared brain on each session start.
 
 ## Prerequisites
@@ -62,7 +62,7 @@ Copy the printed token into the installer prompt.
 ```
 ~/.claude-lab/<agent-id>/.claude/
 |-- CLAUDE.md                  # SOUL: who the agent is
-|-- .mcp.json                  # second_brain memory/recall/swarm endpoints (chmod 600)
+|-- .mcp.json                  # second_brain memory/memory_router/agent_router endpoints (chmod 600)
 |-- settings.json              # Claude Code hooks (SessionStart/Stop/PreCompact)
 |-- agent.env                  # source this to export MCP_HOST/AGENT_BEARER
 |-- core/
@@ -79,7 +79,7 @@ Copy the printed token into the installer prompt.
 |       `-- pre-compact/       # PreCompact snapshots (rotated)
 |-- tools/TOOLS.md             # infra map
 |-- scripts/                   # memory-rotate, trim-hot, rotate-warm,
-|                              # compress-warm, second_brain-recall-on-start
+|                              # compress-warm, second_brain-memory_router-on-start
 |-- hooks/                     # session-start, stop, precompact
 |-- logs/                      # hooks.log, verbose-YYYY-MM-DD.jsonl
 `-- skills/                    # symlink to ../skills/ (shared bundle)
@@ -96,12 +96,12 @@ source ~/.claude-lab/<agent-id>/.claude/agent.env
 curl -sS -H "Authorization: Bearer ${AGENT_BEARER}" \
      -H "Accept: application/json, text/event-stream" \
      -H "Content-Type: application/json" \
-     -X POST "${MCP_HOST}/recall/mcp" \
+     -X POST "${MCP_HOST}/memory_router/mcp" \
      --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
 Expected: JSON-RPC response listing `recall`, `get`, `related`, `recent`,
-`stats` (the recall MCP tools).
+`stats` (the memory_router MCP tools).
 
 ## Launching the agent
 
@@ -111,9 +111,9 @@ claude --project ~/.claude-lab/<agent-id>/.claude
 ```
 
 On session start, the `SessionStart` hook reads `core/hot/handoff.md`, and if
-`MCP_HOST` / `AGENT_BEARER` are set, runs `scripts/second_brain-recall-on-start.sh`
-which posts a JSON-RPC `tools/call recall` to `${MCP_HOST}/recall/mcp` and
-prepends a `### YYYY-MM-DD HH:MM [second_brain-recall]` block to `core/hot/recent.md`.
+`MCP_HOST` / `AGENT_BEARER` are set, runs `scripts/second_brain-memory_router-on-start.sh`
+which posts a JSON-RPC `tools/call recall` to `${MCP_HOST}/memory_router/mcp` and
+prepends a `### YYYY-MM-DD HH:MM [second_brain-memory_router]` block to `core/hot/recent.md`.
 
 On each turn end, `Stop` hook appends a 200-char snippet to `recent.md` and a
 full JSON envelope to `logs/verbose-YYYY-MM-DD.jsonl`.
@@ -161,7 +161,7 @@ in `Authorization` header, JSON-RPC 2.0 in the body.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `second_brain-recall-on-start.sh` logs "MCP_HOST or AGENT_BEARER unset" | shell didn't `source agent.env` | `source ~/.claude-lab/<agent-id>/.claude/agent.env` before `claude` |
+| `second_brain-memory_router-on-start.sh` logs "MCP_HOST or AGENT_BEARER unset" | shell didn't `source agent.env` | `source ~/.claude-lab/<agent-id>/.claude/agent.env` before `claude` |
 | recall returns `403` | token has no `90-inbox` (or relevant) scope, or wrong agent | re-issue with `issue-agent-token.py --scopes ...` |
 | recall returns empty results | second_brain DB has no notes yet | use `create_decision_note` first, or backfill from existing decisions.md |
 | `Stop` hook never fires | `settings.json` not picked up | confirm `claude --project` points at the workspace dir that contains `settings.json` |

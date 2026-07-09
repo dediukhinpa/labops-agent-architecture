@@ -8,7 +8,7 @@ fi
 
 # SessionStart hook -- runs once at the start of a Claude Code session.
 # 1) Logs that a session started.
-# 2) If second_brain MCP credentials are present, calls second_brain-recall-on-start.sh to
+# 2) If second_brain MCP credentials are present, calls second_brain-memory_router-on-start.sh to
 #    prepend a "relevant second_brain recalls" block to core/hot/recent.md.
 #
 # Wire via templates/settings.json.template (SessionStart hook).
@@ -35,11 +35,11 @@ fi
 
 # Optional second_brain recall (only if env is set; install.sh writes these to a
 # per-agent rc file you can `source` before launching Claude Code).
-RECALL_SCRIPT="$WS/scripts/second_brain-recall-on-start.sh"
+RECALL_SCRIPT="$WS/scripts/second_brain-memory_router-on-start.sh"
 if [ -x "$RECALL_SCRIPT" ]; then
     if [ -n "${MCP_HOST:-}" ] && [ -n "${AGENT_BEARER:-}" ]; then
         log "running second_brain recall"
-        bash "$RECALL_SCRIPT" >>"$HOOK_LOG" 2>&1 || log "second_brain-recall returned non-zero"
+        bash "$RECALL_SCRIPT" >>"$HOOK_LOG" 2>&1 || log "second_brain-memory_router returned non-zero"
     else
         log "MCP_HOST or AGENT_BEARER unset; skipping recall"
     fi

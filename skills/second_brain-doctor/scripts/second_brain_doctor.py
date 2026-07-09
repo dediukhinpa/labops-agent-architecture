@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """second_brain-doctor — agent-facing diagnostic CLI for an labops agent's second_brain setup.
 
-Runs grouped read-only checks (MCP connectivity/identity, swarm, recall,
+Runs grouped read-only checks (MCP connectivity/identity, agent_router, memory_router,
 memory, hooks parity, webhooks, topology/security, GitHub repo, skill install)
 against the agent's own machine and reports pass/warn/fail/skip.
 
@@ -57,8 +57,8 @@ VALID_GROUPS = {f"G{i}" for i in range(1, 11)}
 # in the URL but the service is conceptually ``tasks``.
 _PATH_TO_SERVICE = {
     "memory": "memory",
-    "recall": "recall",
-    "swarm": "swarm",
+    "memory_router": "memory_router",
+    "agent_router": "agent_router",
     "task": "tasks",
     "tasks": "tasks",
 }
@@ -74,7 +74,7 @@ class McpServer:
     """A single second_brain MCP server entry resolved from ``.mcp.json``."""
 
     key: str
-    service: str  # "memory" | "recall" | "swarm" | "tasks"
+    service: str  # "memory" | "memory_router" | "agent_router" | "tasks"
     url: str
     token: str  # raw; kept in memory only, never printed un-masked
     type: str  # expected "http"
@@ -84,10 +84,10 @@ def _infer_service(url: str) -> str | None:
     """Infer the canonical service name from an MCP URL path.
 
     Args:
-        url: The server URL, e.g. ``https://host/swarm/mcp``.
+        url: The server URL, e.g. ``https://host/agent_router/mcp``.
 
     Returns:
-        ``"memory"`` / ``"recall"`` / ``"swarm"`` / ``"tasks"`` or ``None``
+        ``"memory"`` / ``"memory_router"`` / ``"agent_router"`` / ``"tasks"`` or ``None``
         when no known segment is present.
     """
     # Split path into segments and look for a known service token. We check
@@ -185,7 +185,7 @@ def load_mcp_config(
             service = _infer_service(url)
             if service is None:
                 # Not a second_brain server (or unknown path) — skip silently; the
-                # doctor only cares about second_brain memory/recall/swarm/tasks.
+                # doctor only cares about second_brain memory/memory_router/agent_router/tasks.
                 continue
             headers = spec.get("headers") or {}
             token = ""
@@ -225,13 +225,13 @@ class DoctorContext:
     repo_root: Path
     do_fix: bool
     assume_yes: bool
-    probe_scope: str | None = None  # optional scope for recall.recent smoke
+    probe_scope: str | None = None  # optional scope for memory_router.recent smoke
 
     def server(self, service: str) -> McpServer | None:
         """Return the configured server for a canonical service, or ``None``.
 
         Args:
-            service: ``"memory"`` / ``"recall"`` / ``"swarm"`` / ``"tasks"``.
+            service: ``"memory"`` / ``"memory_router"`` / ``"agent_router"`` / ``"tasks"``.
 
         Returns:
             The matching :class:`McpServer`, or ``None`` when absent.
@@ -491,7 +491,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="second_brain-doctor",
         description=(
             "Agent-facing diagnostic for an labops agent's second_brain MCP "
-            "setup: connectivity, identity, recall, swarm, hooks parity, "
+            "setup: connectivity, identity, memory_router, agent_router, hooks parity, "
             "webhooks, topology, GitHub repo, and skill install."
         ),
     )
@@ -541,7 +541,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--probe-scope",
         default=os.environ.get("SECOND_BRAIN_PROBE_SCOPE") or None,
         metavar="SCOPE",
-        help="Optional scope passed to the recall.recent smoke check "
+        help="Optional scope passed to the memory_router.recent smoke check "
         "(falls back to env SECOND_BRAIN_PROBE_SCOPE).",
     )
     parser.add_argument(

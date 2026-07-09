@@ -18,7 +18,7 @@ export SECOND_BRAIN_TOKEN="$(cat ~/.secrets/second_brain-token)"
 
 # Endpoints — take the exact URLs from this agent's .mcp.json.
 export MEMORY_URL="https://mcp.labops.local/memory/mcp"
-export SWARM_URL="https://mcp.labops.local/swarm/mcp"
+export SWARM_URL="https://mcp.labops.local/agent_router/mcp"
 
 # The agent you are checking (used as to_agent for the self-notify roundtrip).
 export AGENT="nova"
@@ -98,7 +98,7 @@ Pass criteria: first call returns a note id without error; second call returns t
 "already exists" / no-op signal (no duplicate row). NEVER put a token, key, IP, or any secret into
 `title`/`body`/`tags`.
 
-## Probe 2 — swarm self-notify roundtrip (C015 manual)
+## Probe 2 — agent_router self-notify roundtrip (C015 manual)
 
 Sends a notify to **this same agent**, then fetches the resulting delivery by id. Proves the
 outbox state machine end-to-end (enqueue -> deliver -> readable row).
@@ -143,4 +143,4 @@ operator-approved smoke. Ack or let it drain afterwards so it does not inflate `
 
 - Memory probe notes are tagged `second_brain-doctor`/`probe`; prune via the normal vault tooling if you
   do not want them lingering.
-- The self-notify delivery should be acked/drained so G3 `swarm_pending_depth` stays clean.
+- The self-notify delivery should be acked/drained so G3 `agent_router_pending_depth` stays clean.

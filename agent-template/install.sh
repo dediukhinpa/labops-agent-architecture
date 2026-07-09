@@ -240,7 +240,7 @@ fill_template "${TEMPLATES_DIR}/global-CLAUDE.md.template" "${GLOBAL_DIR}/CLAUDE
 # ============================================================
 
 log "Copying memory-management scripts..."
-for script in trim-hot.sh compress-warm.sh rotate-warm.sh memory-rotate.sh second_brain-recall-on-start.sh; do
+for script in trim-hot.sh compress-warm.sh rotate-warm.sh memory-rotate.sh second_brain-memory_router-on-start.sh; do
     if [ -f "${SCRIPTS_DIR}/${script}" ]; then
         if [ ! -f "${WORKSPACE}/scripts/${script}" ]; then
             cp "${SCRIPTS_DIR}/${script}" "${WORKSPACE}/scripts/${script}"
@@ -403,7 +403,7 @@ echo "       source ${AGENT_RC}"
 echo "       curl -sS -H \"Authorization: Bearer \${AGENT_BEARER}\" \\"
 echo "            -H \"Accept: application/json, text/event-stream\" \\"
 echo "            -H \"Content-Type: application/json\" \\"
-echo "            -X POST \"\${MCP_HOST}/recall/mcp\" \\"
+echo "            -X POST \"\${MCP_HOST}/memory_router/mcp\" \\"
 echo "            --data '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}'"
 echo ""
 echo "    3. Launch agent (settings.json wires Stop/SessionStart/PreCompact hooks):"

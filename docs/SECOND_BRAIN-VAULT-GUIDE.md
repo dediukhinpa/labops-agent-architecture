@@ -210,7 +210,7 @@ second_brain-memory.create_external_note(
 **В boot sequence:**
 ```bash
 # STEP 0: Recover context from vault
-second_brain-recall.recall(
+second_brain-memory_router.recall(
     query="my_agent_name context decisions rules",
     limit=10,
     days=7
@@ -221,14 +221,14 @@ second_brain-recall.recall(
 **Во время работы:**
 ```python
 # Когда нужен контекст по какой-то области
-second_brain-recall.recall(
+second_brain-memory_router.recall(
     query="git workflow deployment strategy developer",
     limit=5
 )
 # Получит: топ-5 notes которые релевантны для developer про deployment
 
 # Когда ищешь как фиксить баг
-second_brain-recall.recall(
+second_brain-memory_router.recall(
     query="race condition auth concurrent requests",
     limit=3
 )
@@ -378,7 +378,7 @@ second_brain-memory.create_decision_note(
 )
 
 # После каждого добавления отправляет подтверждение
-second_brain-swarm.notify(
+second_brain-agent_router.notify(
     to_agent="developer",
     payload={
         "task": "vault_entry_added",

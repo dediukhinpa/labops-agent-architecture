@@ -9,7 +9,7 @@
 
 **Решение:**
 ```
-02:00 → cron-скрипт → swarm.notify → агент просыпается → recall learnings → анализирует → пишет в rules.md
+02:00 → cron-скрипт → agent_router.notify → агент просыпается → recall learnings → анализирует → пишет в rules.md
 ```
 
 ---
@@ -44,7 +44,7 @@ crontab -l | grep night-learnings
 **Что делает:**
 1. Для каждого агента (developer, researcher, assistant):
 2. Читает bearer token из `.mcp.json`
-3. Отправляет `swarm.notify` на `localhost:8766` (second_brain-swarm)
+3. Отправляет `agent_router.notify` на `localhost:8766` (second_brain-agent_router)
 4. Payload содержит:
    - `to_agent`: агент, который должен проснуться
    - `title`: "Night Learnings Review"
@@ -78,13 +78,13 @@ crontab -l | grep night-learnings
 
 ---
 
-### 3. Agent Workflow (second_brain-swarm.notify trigger)
+### 3. Agent Workflow (second_brain-agent_router.notify trigger)
 
 Когда агент получает уведомление о night learnings:
 
 #### Шаг 1: Получение задачи (PostSessionStart)
 
-Агент просыпается и видит задачу в свом inbox (через second_brain-swarm MCP).
+Агент просыпается и видит задачу в свом inbox (через second_brain-agent_router MCP).
 
 **Инструкция в CLAUDE.md:**
 ```
@@ -101,7 +101,7 @@ Workflow:
 
 ```python
 # Агент делает recall из second_brain
-second_brain-recall.recall(
+second_brain-memory_router.recall(
   query="mistakes errors patterns failures " + agent_name,
   limit=20,
   days=7
@@ -151,9 +151,9 @@ EOF
 23:59:59 — агенты спят, слушают только Telegram
 02:00:00 — cron срабатывает
 02:00:01 — night-learnings.sh запускается
-02:00:02 — swarm.notify отправляется каждому агенту
+02:00:02 — agent_router.notify отправляется каждому агенту
 02:00:05 — developer просыпается, получает задачу
-02:00:10 — developer делает recall из second_brain
+02:00:10 — developer делает recall из second_brain (memory_router)
 02:00:30 — developer анализирует learnings
 02:01:00 — developer пишет в rules.md
 02:01:30 — developer отправляет отчёт в Telegram
@@ -341,7 +341,7 @@ tail -10 ~/.claude-lab/developer/.claude/core/rules.md
 ```bash
 # В night-learnings.sh добавить:
 if [repeated_violation == true]; then
-  swarm.notify(to_agent="developer", 
+  agent_router.notify(to_agent="developer", 
                payload={
                  "task": "escalate_to_hook",
                  "rule": rule_name,

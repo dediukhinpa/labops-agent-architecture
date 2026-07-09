@@ -217,7 +217,7 @@ class TestRedaction:
 class TestResultModel:
     def _sample(self) -> list[CheckResult]:
         return [
-            CheckResult("G1.mcp_tools_list", "pass", "recall=82ms swarm=77ms"),
+            CheckResult("G1.mcp_tools_list", "pass", "memory_router=82ms agent_router=77ms"),
             CheckResult(
                 "G6.stop_hook_recent_fresh",
                 "warn",
@@ -360,7 +360,7 @@ class TestMcpStreamable:
     def test_plain_json_tools_list(self, monkeypatch):
         cap = _patch_urlopen(monkeypatch, body=_PLAIN_TOOLS)
         tools, latency = mcp_streamable.tools_list(
-            "https://host/recall/mcp", "tok-aaaaaaaaaaaa"
+            "https://host/memory_router/mcp", "tok-aaaaaaaaaaaa"
         )
         assert [t["name"] for t in tools] == ["recall", "recent"]
         assert latency >= 0.0
@@ -369,13 +369,13 @@ class TestMcpStreamable:
 
     def test_sse_data_frame_parsed(self, monkeypatch):
         _patch_urlopen(monkeypatch, body=_SSE_TOOLS)
-        tools, _ = mcp_streamable.tools_list("https://host/swarm/mcp", "tok")
+        tools, _ = mcp_streamable.tools_list("https://host/agent_router/mcp", "tok")
         assert [t["name"] for t in tools] == ["stats"]
 
     def test_tool_call_structured_content(self, monkeypatch):
         _patch_urlopen(monkeypatch, body=_SSE_TOOL_CALL)
         payload, _ = mcp_streamable.tool_call(
-            "https://host/swarm/mcp", "tok", "stats", {}
+            "https://host/agent_router/mcp", "tok", "stats", {}
         )
         assert payload == {"count": 42, "ok": True}
 
@@ -403,17 +403,17 @@ class TestMcpStreamable:
 
         _patch_urlopen(monkeypatch, raise_exc=urllib.error.URLError("conn refused"))
         with pytest.raises(McpError):
-            mcp_streamable.tools_list("https://host/recall/mcp", "tok")
+            mcp_streamable.tools_list("https://host/memory_router/mcp", "tok")
 
     def test_empty_body_raises(self, monkeypatch):
         _patch_urlopen(monkeypatch, body="")
         with pytest.raises(McpError):
-            mcp_streamable.tools_list("https://host/recall/mcp", "tok")
+            mcp_streamable.tools_list("https://host/memory_router/mcp", "tok")
 
     def test_non_json_body_raises(self, monkeypatch):
         _patch_urlopen(monkeypatch, body="<html>nope</html>")
         with pytest.raises(McpError):
-            mcp_streamable.tools_list("https://host/recall/mcp", "tok")
+            mcp_streamable.tools_list("https://host/memory_router/mcp", "tok")
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +425,7 @@ class TestConfigLoader:
     def test_loads_valid_mcp_json(self):
         servers, path = load_mcp_config(str(_FIXTURES / "mcp-valid.json"), None)
         services = sorted(s.service for s in servers)
-        assert services == ["memory", "recall", "swarm"]
+        assert services == ["agent_router", "memory", "memory_router"]
         assert path == _FIXTURES / "mcp-valid.json"
         for s in servers:
             assert s.token  # bearer extracted

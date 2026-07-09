@@ -90,8 +90,8 @@ Create `~/.claude-lab/reviewer/.claude/core/AGENTS.md`:
 
 - URL: ${MCP_HOST} (use Tailscale IP for multi-VPS: check `ss -tlnp | grep 1933`)
 - Key: ~/.claude-lab/shared/secrets/second_brain.key
-- Search: POST ${MCP_HOST}/recall/mcp (JSON-RPC tools/call recall)
-- Sync: Stop hook + cron via second_brain-recall-on-start.sh (see MEMORY.md)
+- Search: POST ${MCP_HOST}/memory_router/mcp (JSON-RPC tools/call recall)
+- Sync: Stop hook + cron via second_brain-memory_router-on-start.sh (see MEMORY.md)
 ```
 
 ## Step 4: Write USER.md

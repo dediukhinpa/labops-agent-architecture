@@ -5,11 +5,11 @@ second_brain MCP streamable-http endpoints, using the verified stdlib JSON-RPC
 client in :mod:`mcp_streamable`.
 
 Group map:
-    G1 connectivity  : C001-C006
-    G2 identity/token: C007-C011
-    G3 swarm         : C012-C015
-    G4 recall        : C016-C018
-    G5 memory (dry)  : C019-C021
+    G1 connectivity    : C001-C006
+    G2 identity/token  : C007-C011
+    G3 agent_router    : C012-C015
+    G4 memory_router   : C016-C018
+    G5 memory (dry)    : C019-C021
 
 Hard guarantees:
     * Default run is fully read-only — no mutating tool is ever called.
@@ -21,9 +21,9 @@ Hard guarantees:
       group's checks are not dispatched at all when filtered out.
 
 Assumed second_brain tool names (verify against the live server during review):
-    recall : ``stats``, ``recall``, ``recent``, ``reindex_check``
-    swarm  : ``stats``, ``list_recent_deliveries``, ``list_my_pending``,
-             ``get_delivery``
+    memory_router : ``stats``, ``recall``, ``recent``, ``reindex_check``
+    agent_router  : ``stats``, ``list_recent_deliveries``, ``list_my_pending``,
+                    ``get_delivery``
     tasks  : ``agent_list``, ``agent_status``
     memory : (tools/list only; expects ``create_*`` write tools registered)
 """
@@ -45,7 +45,7 @@ from result import CheckResult
 
 # Substrings (lower-cased) that mark a "tool not registered / unknown method"
 # style failure. Per PLAN these become ``warn`` for the optional smoke tools
-# (C004 recall.stats, C005 swarm.stats) rather than ``fail``.
+# (C004 memory_router.stats, C005 agent_router.stats) rather than ``fail``.
 _NOT_REGISTERED_HINTS = (
     "not registered",
     "unknown tool",
@@ -101,8 +101,8 @@ def run_checks(ctx: "Any") -> list[CheckResult]:
         _safe(results, "G1.mcp_config_servers_present", _c001_config_present, ctx)
         _safe(results, "G1.mcp_server_specs_well_formed", _c002_specs_well_formed, ctx)
         _safe(results, "G1.mcp_tools_list", _c003_tools_list, ctx)
-        _safe(results, "G1.recall_stats", _c004_recall_stats, ctx)
-        _safe(results, "G1.swarm_stats", _c005_swarm_stats, ctx)
+        _safe(results, "G1.memory_router_stats", _c004_recall_stats, ctx)
+        _safe(results, "G1.agent_router_stats", _c005_swarm_stats, ctx)
         _safe(results, "G1.tasks_agent_list", _c006_tasks_agent_list, ctx)
 
     if ctx.want("G2"):
@@ -118,20 +118,20 @@ def run_checks(ctx: "Any") -> list[CheckResult]:
         )
 
     if ctx.want("G3"):
-        _safe(results, "G3.swarm_recent_acked_ratio", _c012_acked_ratio, ctx)
-        _safe(results, "G3.swarm_pending_depth", _c013_pending_depth, ctx)
-        _safe(results, "G3.swarm_delivery_lookup", _c014_delivery_lookup, ctx)
+        _safe(results, "G3.agent_router_recent_acked_ratio", _c012_acked_ratio, ctx)
+        _safe(results, "G3.agent_router_pending_depth", _c013_pending_depth, ctx)
+        _safe(results, "G3.agent_router_delivery_lookup", _c014_delivery_lookup, ctx)
         _safe(
             results,
-            "G3.swarm_self_notify_roundtrip",
+            "G3.agent_router_self_notify_roundtrip",
             _c015_self_notify_roundtrip,
             ctx,
         )
 
     if ctx.want("G4"):
-        _safe(results, "G4.recall_probe", _c016_recall_probe, ctx)
-        _safe(results, "G4.recall_recent_probe", _c017_recall_recent, ctx)
-        _safe(results, "G4.recall_reindex_check", _c018_reindex_check, ctx)
+        _safe(results, "G4.memory_router_probe", _c016_recall_probe, ctx)
+        _safe(results, "G4.memory_router_recent_probe", _c017_recall_recent, ctx)
+        _safe(results, "G4.memory_router_reindex_check", _c018_reindex_check, ctx)
 
     if ctx.want("G5"):
         _safe(results, "G5.memory_tools_registered", _c019_memory_tools, ctx)
@@ -224,7 +224,7 @@ def _is_arg_validation_error(exc: McpError) -> bool:
 
 
 def _resolve_probe_scope(ctx) -> str | None:
-    """Resolve an optional recall scope to smoke ``recent`` with.
+    """Resolve an optional memory_router scope to smoke ``recent`` with.
 
     Prefers a ``probe_scope`` attribute on the context (a sibling agent may add
     a ``--probe-scope`` CLI flag), then falls back to the ``SECOND_BRAIN_PROBE_SCOPE``
@@ -257,9 +257,9 @@ def _fmt_latency(ms: float) -> str:
 
 
 def _c001_config_present(ctx) -> CheckResult:
-    """C001: required MCP servers (memory/recall/swarm) present; tasks optional."""
+    """C001: required MCP servers (memory/memory_router/agent_router) present; tasks optional."""
     name = "G1.mcp_config_servers_present"
-    required = ("memory", "recall", "swarm")
+    required = ("memory", "memory_router", "agent_router")
     present = {s for s in required if ctx.server(s) is not None}
     missing = [s for s in required if s not in present]
     has_tasks = ctx.server("tasks") is not None
@@ -283,7 +283,7 @@ def _c001_config_present(ctx) -> CheckResult:
         name=name,
         status="pass",
         message=redact.redact(
-            f"memory/recall/swarm present; {tasks_note}"
+            f"memory/memory_router/agent_router present; {tasks_note}"
         ),
     )
 
@@ -352,7 +352,7 @@ def _looks_like_placeholder(tok: str) -> bool:
 def _c003_tools_list(ctx) -> CheckResult:
     """C003: each present MCP endpoint accepts authed JSON-RPC and lists tools."""
     name = "G1.mcp_tools_list"
-    order = ("recall", "swarm", "memory", "tasks")
+    order = ("memory_router", "agent_router", "memory", "tasks")
     parts: list[str] = []
     any_fail = False
     any_present = False
@@ -395,13 +395,13 @@ def _c003_tools_list(ctx) -> CheckResult:
 
 
 def _c004_recall_stats(ctx) -> CheckResult:
-    """C004: recall service executes a read-only smoke tool (stats)."""
-    return _smoke_stats(ctx, "recall", "G1.recall_stats")
+    """C004: memory_router service executes a read-only smoke tool (stats)."""
+    return _smoke_stats(ctx, "memory_router", "G1.memory_router_stats")
 
 
 def _c005_swarm_stats(ctx) -> CheckResult:
-    """C005: swarm service executes a read-only smoke tool (stats)."""
-    return _smoke_stats(ctx, "swarm", "G1.swarm_stats")
+    """C005: agent_router service executes a read-only smoke tool (stats)."""
+    return _smoke_stats(ctx, "agent_router", "G1.agent_router_stats")
 
 
 def _smoke_stats(ctx, service: str, name: str) -> CheckResult:
@@ -621,7 +621,7 @@ def _c007_auth_denied(ctx) -> CheckResult:
     name = "G2.auth_without_bearer_denied"
     # Prefer a public-ish service; any present one proves the auth boundary.
     srv = None
-    for service in ("recall", "swarm", "memory", "tasks"):
+    for service in ("memory_router", "agent_router", "memory", "tasks"):
         srv = ctx.server(service)
         if srv is not None:
             break
@@ -917,19 +917,19 @@ def _c011_redaction_selftest(ctx) -> CheckResult:
 
 
 # ---------------------------------------------------------------------------
-# G3 — swarm
+# G3 — agent_router
 # ---------------------------------------------------------------------------
 
 
 def _c012_acked_ratio(ctx) -> CheckResult:
     """C012: recent visible deliveries are mostly acked (fail if >20% failed)."""
-    name = "G3.swarm_recent_acked_ratio"
-    srv = ctx.server("swarm")
+    name = "G3.agent_router_recent_acked_ratio"
+    srv = ctx.server("agent_router")
     if srv is None:
         return CheckResult(
             name=name,
             status="skip",
-            message=redact.redact("swarm server not configured"),
+            message=redact.redact("agent_router server not configured"),
         )
     try:
         payload, latency_ms = tool_call(
@@ -943,7 +943,7 @@ def _c012_acked_ratio(ctx) -> CheckResult:
                 message=redact.redact(
                     f"list_recent_deliveries unavailable: {exc.message}"
                 ),
-                remediation="Verify swarm MCP exposes list_recent_deliveries.",
+                remediation="Verify agent_router MCP exposes list_recent_deliveries.",
             )
         if _is_arg_validation_error(exc):
             return CheckResult(
@@ -974,7 +974,7 @@ def _c012_acked_ratio(ctx) -> CheckResult:
             message=redact.redact(
                 f"no recent deliveries returned ({_fmt_latency(latency_ms)})"
             ),
-            remediation="No recent swarm traffic to evaluate ack ratio.",
+            remediation="No recent agent_router traffic to evaluate ack ratio.",
         )
     failed = sum(1 for r in rows if _is_failed_delivery(r))
     total = len(rows)
@@ -998,13 +998,13 @@ def _c012_acked_ratio(ctx) -> CheckResult:
 
 def _c013_pending_depth(ctx) -> CheckResult:
     """C013: this agent does not have a large stuck pending queue."""
-    name = "G3.swarm_pending_depth"
-    srv = ctx.server("swarm")
+    name = "G3.agent_router_pending_depth"
+    srv = ctx.server("agent_router")
     if srv is None:
         return CheckResult(
             name=name,
             status="skip",
-            message=redact.redact("swarm server not configured"),
+            message=redact.redact("agent_router server not configured"),
         )
     # Ground truth: list_my_pending takes only ``limit`` (identity comes from the
     # Bearer token server-side). It has NO ``agent`` argument.
@@ -1021,7 +1021,7 @@ def _c013_pending_depth(ctx) -> CheckResult:
                 message=redact.redact(
                     f"list_my_pending unavailable: {exc.message}"
                 ),
-                remediation="Verify swarm MCP exposes list_my_pending.",
+                remediation="Verify agent_router MCP exposes list_my_pending.",
             )
         if _is_arg_validation_error(exc):
             return CheckResult(
@@ -1060,13 +1060,13 @@ def _c013_pending_depth(ctx) -> CheckResult:
 
 def _c014_delivery_lookup(ctx) -> CheckResult:
     """C014: a visible recent delivery can be fetched by id via get_delivery."""
-    name = "G3.swarm_delivery_lookup"
-    srv = ctx.server("swarm")
+    name = "G3.agent_router_delivery_lookup"
+    srv = ctx.server("agent_router")
     if srv is None:
         return CheckResult(
             name=name,
             status="skip",
-            message=redact.redact("swarm server not configured"),
+            message=redact.redact("agent_router server not configured"),
         )
     try:
         recent_payload, _ = tool_call(
@@ -1106,7 +1106,7 @@ def _c014_delivery_lookup(ctx) -> CheckResult:
             name=name,
             status="fail",
             message=redact.redact(f"get_delivery failed: {exc.message}"),
-            remediation="Check swarm DB/outbox consistency.",
+            remediation="Check agent_router DB/outbox consistency.",
         )
     returned_id = _extract_id(looked)
     if returned_id is not None and str(returned_id) != str(delivery_id):
@@ -1117,7 +1117,7 @@ def _c014_delivery_lookup(ctx) -> CheckResult:
                 f"get_delivery returned mismatched id "
                 f"(asked {delivery_id}, got {returned_id})"
             ),
-            remediation="Check swarm DB/outbox consistency.",
+            remediation="Check agent_router DB/outbox consistency.",
         )
     return CheckResult(
         name=name,
@@ -1131,7 +1131,7 @@ def _c014_delivery_lookup(ctx) -> CheckResult:
 def _c015_self_notify_roundtrip(ctx) -> CheckResult:
     """C015: notify-to-self roundtrip is documented but NOT run by default."""
     return CheckResult(
-        name="G3.swarm_self_notify_roundtrip",
+        name="G3.agent_router_self_notify_roundtrip",
         status="skip",
         message=redact.redact(
             "read-only default; see references/manual-write-probes.md"
@@ -1144,19 +1144,19 @@ def _c015_self_notify_roundtrip(ctx) -> CheckResult:
 
 
 # ---------------------------------------------------------------------------
-# G4 — recall
+# G4 — memory_router
 # ---------------------------------------------------------------------------
 
 
 def _c016_recall_probe(ctx) -> CheckResult:
-    """C016: recall search executes without error even if no hits."""
-    name = "G4.recall_probe"
-    srv = ctx.server("recall")
+    """C016: memory_router search executes without error even if no hits."""
+    name = "G4.memory_router_probe"
+    srv = ctx.server("memory_router")
     if srv is None:
         return CheckResult(
             name=name,
             status="skip",
-            message=redact.redact("recall server not configured"),
+            message=redact.redact("memory_router server not configured"),
         )
     try:
         payload, latency_ms = tool_call(
@@ -1171,15 +1171,15 @@ def _c016_recall_probe(ctx) -> CheckResult:
                 name=name,
                 status="warn",
                 message=redact.redact(
-                    f"recall.recall arg-validation error: {exc.message}"
+                    f"memory_router.recall arg-validation error: {exc.message}"
                 ),
                 remediation=_ARG_MISMATCH_REMEDIATION,
             )
         return CheckResult(
             name=name,
             status="fail",
-            message=redact.redact(f"recall.recall failed: {exc.message}"),
-            remediation="Fix recall service, embeddings, or auth.",
+            message=redact.redact(f"memory_router.recall failed: {exc.message}"),
+            remediation="Fix memory_router service, embeddings, or auth.",
         )
     hits = _count_items(payload)
     suffix = f" ({hits} hit(s))" if hits is not None else ""
@@ -1187,13 +1187,13 @@ def _c016_recall_probe(ctx) -> CheckResult:
         name=name,
         status="pass",
         message=redact.redact(
-            f"recall query ok ({_fmt_latency(latency_ms)}){suffix}"
+            f"memory_router query ok ({_fmt_latency(latency_ms)}){suffix}"
         ),
     )
 
 
 def _c017_recall_recent(ctx) -> CheckResult:
-    """C017: recall recent read path works (warn on empty vault).
+    """C017: memory_router recent read path works (warn on empty vault).
 
     Ground truth: ``recent`` REQUIRES a ``scope`` argument and a generic doctor
     cannot know the valid scope values for an arbitrary second_brain deployment. We
@@ -1201,15 +1201,15 @@ def _c017_recall_recent(ctx) -> CheckResult:
     ``--probe-scope`` flag surfaced as ``ctx.probe_scope`` or the
     ``SECOND_BRAIN_PROBE_SCOPE`` env var); otherwise we ``skip`` cleanly. We never
     FAIL merely because the doctor omitted a required argument — C016
-    (recall_probe) already exercises the read path.
+    (memory_router_probe) already exercises the read path.
     """
-    name = "G4.recall_recent_probe"
-    srv = ctx.server("recall")
+    name = "G4.memory_router_recent_probe"
+    srv = ctx.server("memory_router")
     if srv is None:
         return CheckResult(
             name=name,
             status="skip",
-            message=redact.redact("recall server not configured"),
+            message=redact.redact("memory_router server not configured"),
         )
     scope = _resolve_probe_scope(ctx)
     if scope is None:
@@ -1217,12 +1217,12 @@ def _c017_recall_recent(ctx) -> CheckResult:
             name=name,
             status="skip",
             message=redact.redact(
-                "recall.recent requires a scope arg; set SECOND_BRAIN_PROBE_SCOPE to "
-                "smoke it (C016 recall_probe covers read path)"
+                "memory_router.recent requires a scope arg; set SECOND_BRAIN_PROBE_SCOPE to "
+                "smoke it (C016 memory_router_probe covers read path)"
             ),
             remediation=(
-                "Set SECOND_BRAIN_PROBE_SCOPE=<a valid recall scope> (or pass "
-                "--probe-scope) to exercise recall.recent."
+                "Set SECOND_BRAIN_PROBE_SCOPE=<a valid memory_router scope> (or pass "
+                "--probe-scope) to exercise memory_router.recent."
             ),
         )
     try:
@@ -1235,7 +1235,7 @@ def _c017_recall_recent(ctx) -> CheckResult:
                 name=name,
                 status="warn",
                 message=redact.redact(
-                    f"recall.recent arg-validation error (scope='{scope}'): "
+                    f"memory_router.recent arg-validation error (scope='{scope}'): "
                     f"{exc.message}"
                 ),
                 remediation=_ARG_MISMATCH_REMEDIATION,
@@ -1243,8 +1243,8 @@ def _c017_recall_recent(ctx) -> CheckResult:
         return CheckResult(
             name=name,
             status="fail",
-            message=redact.redact(f"recall.recent failed: {exc.message}"),
-            remediation="Reindex vault or inspect recall service logs.",
+            message=redact.redact(f"memory_router.recent failed: {exc.message}"),
+            remediation="Reindex vault or inspect memory_router service logs.",
         )
     count = _count_items(payload)
     if count == 0:
@@ -1252,7 +1252,7 @@ def _c017_recall_recent(ctx) -> CheckResult:
             name=name,
             status="warn",
             message=redact.redact(
-                f"recall.recent ok but vault empty ({_fmt_latency(latency_ms)})"
+                f"memory_router.recent ok but vault empty ({_fmt_latency(latency_ms)})"
             ),
             remediation="Ingest notes; an empty vault yields no recall hits.",
         )
@@ -1261,20 +1261,20 @@ def _c017_recall_recent(ctx) -> CheckResult:
         name=name,
         status="pass",
         message=redact.redact(
-            f"recall.recent ok ({_fmt_latency(latency_ms)}){suffix}"
+            f"memory_router.recent ok ({_fmt_latency(latency_ms)}){suffix}"
         ),
     )
 
 
 def _c018_reindex_check(ctx) -> CheckResult:
-    """C018: recall reindex_check; tool exception (e.g. OperationalError) -> fail."""
-    name = "G4.recall_reindex_check"
-    srv = ctx.server("recall")
+    """C018: memory_router reindex_check; tool exception (e.g. OperationalError) -> fail."""
+    name = "G4.memory_router_reindex_check"
+    srv = ctx.server("memory_router")
     if srv is None:
         return CheckResult(
             name=name,
             status="skip",
-            message=redact.redact("recall server not configured"),
+            message=redact.redact("memory_router server not configured"),
         )
     try:
         payload, latency_ms = tool_call(
@@ -1297,7 +1297,7 @@ def _c018_reindex_check(ctx) -> CheckResult:
             status="fail",
             message=redact.redact(f"reindex_check raised: {exc.message}"),
             remediation=(
-                "Re-run ingest/reindex on the second_brain host; inspect recall "
+                "Re-run ingest/reindex on the second_brain host; inspect memory_router "
                 "dependencies (aiosqlite/sqlite)."
             ),
         )

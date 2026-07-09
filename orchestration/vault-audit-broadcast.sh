@@ -17,7 +17,7 @@ for AGENT in "${AGENTS[@]}"; do
 
   # Получи bearer token
   MCP_CONFIG="$HOME/.claude-lab/$AGENT/.claude/.mcp.json"
-  BEARER_TOKEN=$(grep -A2 "second_brain-swarm" "$MCP_CONFIG" | grep "Authorization" | grep -oP '(?<=Bearer )[^"]+' | head -1)
+  BEARER_TOKEN=$(grep -A2 "second_brain-agent_router" "$MCP_CONFIG" | grep "Authorization" | grep -oP '(?<=Bearer )[^"]+' | head -1)
 
   if [ -z "$BEARER_TOKEN" ]; then
     echo "  ⚠️ No bearer token for $AGENT"
@@ -66,7 +66,7 @@ second_brain Vault Audit — проверка и заполнение общей
    )
 
 3. После добавления всего отправь подтверждение:
-   second_brain-swarm.notify(
+   second_brain-agent_router.notify(
      to_agent="<coordinator>",
      payload={
        "task": "vault_audit_complete",
@@ -89,10 +89,10 @@ Priority: high
 INSTRUCTION_EOF
 )
 
-  # Создай payload для swarm.notify
+  # Создай payload для agent_router.notify
   PAYLOAD=$(cat <<EOF
 {
-  "method": "swarm.notify",
+  "method": "agent_router.notify",
   "params": {
     "arguments": {
       "to_agent": "$AGENT",

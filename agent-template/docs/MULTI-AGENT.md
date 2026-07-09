@@ -419,7 +419,7 @@ All agents push to and search from one second_brain instance. Replaces file-base
 OLD: File mirrors          →  NEW: second_brain
 shared/state/tasks.json         temp_upload + add_resource
 shared/state/agents.json        (auto-indexed to semantic store)
-mirrors/sync-cron.sh            second_brain-recall-on-start.sh (cron + Stop hook)
+mirrors/sync-cron.sh            second_brain-memory_router-on-start.sh (cron + Stop hook)
 ```
 
 ### Namespacing
@@ -429,7 +429,7 @@ Each agent writes under its own user namespace but can search across all:
 ```bash
 SECOND_BRAIN_BEARER=$(cat ~/.claude-lab/shared/secrets/second_brain.key)
 
-# Agent syncs sessions to its own namespace (via second_brain-recall-on-start.sh or manual)
+# Agent syncs sessions to its own namespace (via second_brain-memory_router-on-start.sh or manual)
 # Step 1: upload markdown
 curl -X POST "${MCP_HOST}/memory/mcp (create_external_note via JSON-RPC)" \
   -H "X-API-Key: $SECOND_BRAIN_BEARER" \
@@ -445,7 +445,7 @@ curl -X POST "${MCP_HOST}/memory/mcp" \
   -d '{"temp_file_id":"<from step 1>","to":"second_brain://notes/jarvis-sessions/2026-04-10","wait":true}'
 
 # Any agent can search across ALL namespaces
-curl -X POST "${MCP_HOST}/recall/mcp" \
+curl -X POST "${MCP_HOST}/memory_router/mcp" \
   -H "X-API-Key: $SECOND_BRAIN_BEARER" \
   -H "X-second_brain-Account: my-team" \
   -H "X-second_brain-User: jarvis" \

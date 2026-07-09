@@ -14,8 +14,8 @@
 | 3 | **systemd: claude-agent-assistant** | Telegram webhook (labops-channel) | ✅ **На подписке** | `active` | Живая интерактивная сессия, входящие сообщения от юзера |
 | 4 | **labops-channel plugin** | Telegram Bot API → hook в settings.json | ✅ **На подписке** | `running` | Перенаправляет сообщения в SessionStart/UserPromptSubmit hooks |
 | 5 | **MCP: second_brain-memory** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8767` | Локальные HTTP звонки, не API платёжи |
-| 6 | **MCP: second_brain-recall** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8768` | Локальные HTTP звонки, не API платёжи |
-| 7 | **MCP: second_brain-swarm** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8766` | Локальные HTTP звонки, не API платёжи |
+| 6 | **MCP: second_brain-memory_router** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8768` | Локальные HTTP звонки, не API платёжи |
+| 7 | **MCP: second_brain-agent_router** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8766` | Локальные HTTP звонки, не API платёжи |
 | 8 | **Cron jobs** | — | ✅ **Отсутствуют** | `—` | Нет периодических задач |
 | 9 | **GitHub Actions** | — | ✅ **Отсутствуют** | `—` | Нет workflow'ов (платно с 15.06.2026) |
 | 10 | **Agent SDK вызовы** | — | ✅ **Отсутствуют** | `—` | Нет SDK-программных вызовов, только CLI |
@@ -74,8 +74,8 @@
 
 **Как работает:**
 - second_brain-memory: HTTP://localhost:8767/mcp (запись решений, ошибок, note'ов)
-- second_brain-recall: HTTP://localhost:8768/mcp (чтение shared memory)
-- second_brain-swarm: HTTP://localhost:8766/mcp (inter-agent уведомления)
+- second_brain-memory_router: HTTP://localhost:8768/mcp (чтение shared memory)
+- second_brain-agent_router: HTTP://localhost:8766/mcp (inter-agent уведомления)
 
 **Биллинг:** ✅ На подписке
 - Это локальные HTTP запросы, не API вызовы

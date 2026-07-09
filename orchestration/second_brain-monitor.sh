@@ -46,7 +46,7 @@ STATE_DIR="${MONITOR_STATE_DIR:-${CLAUDE_LAB:-$HOME/.claude-lab}/logs/monitor-st
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
 # Default monitored set = the units install.sh enables (task-mcp is opt-in).
-DEFAULT_COMPONENTS="memory|second_brain-memory-mcp|8767 recall|second_brain-recall-mcp|8768 swarm|second_brain-swarm-mcp|8766 ingest|second_brain-ingest-worker| swarmw|second_brain-swarm-worker|"
+DEFAULT_COMPONENTS="memory|second_brain-memory-mcp|8767 memory_router|second_brain-memory_router-mcp|8768 agent_router|second_brain-agent_router-mcp|8766 ingest|second_brain-ingest-worker| agent_routerw|second_brain-agent_router-worker|"
 read -ra COMPONENTS <<< "${MONITOR_COMPONENTS:-$DEFAULT_COMPONENTS}"
 
 log() { echo "[sb-monitor] $(date -u '+%H:%M:%S') $*"; }

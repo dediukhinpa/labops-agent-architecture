@@ -29,7 +29,7 @@
 This is one of the **three** repositories of the labops system. It owns how an agent **lives** (processes, memory, self-healing). The channel and the shared brain live in the sibling repositories:
 
 - **[`labops-tg-plugin`](https://github.com/dediukhinpa/labops-tg-plugin)** — the Telegram channel: per-agent bot, voice, reactions, webhook.
-- **[`labops-second-brain`](https://github.com/dediukhinpa/labops-second-brain)** — shared memory: MCP `memory:8767` / `recall:8768` / `swarm:8766` / `task:8769`. The agent receives a Bearer token and reads/writes through MCP.
+- **[`labops-second-brain`](https://github.com/dediukhinpa/labops-second-brain)** — shared memory: MCP `memory:8767` / `memory_router:8768` / `agent_router:8766` / `task:8769`. The agent receives a Bearer token and reads/writes through MCP.
 
 > [!IMPORTANT]
 > **Platform:** Linux + systemd + tmux. On macOS / without systemd you can run an agent manually in tmux, but not as a service (no autostart / self-healing).
@@ -95,7 +95,7 @@ Responsibility boundaries of the three repositories:
 |---|---|---|
 | **labops-agent-architecture** (this one) | Runtime / lifecycle | workspaces, memory, watchdog, systemd, hooks, swarm automation, the `create-agent` skill |
 | **labops-tg-plugin** | Channel | receiving from Telegram (long-poll), sending replies/reactions, voice, webhook `:8089+` |
-| **labops-second-brain** | Memory | Postgres+pgvector, MCP memory/recall/swarm/task, RBAC via Bearer tokens |
+| **labops-second-brain** | Memory | Postgres+pgvector, MCP memory/memory_router/agent_router/task, RBAC via Bearer tokens |
 
 ---
 
@@ -149,7 +149,7 @@ flowchart LR
     direction TB
     CC["claude (Claude Code CLI)<br/>--dangerously-skip-permissions<br/>server:labops-channel"]
     BUN["channel server (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
-    SB["second_brain MCP<br/>memory:8767 / recall:8768 / swarm:8766"]
+    SB["second_brain MCP<br/>memory:8767 / memory_router:8768 / agent_router:8766"]
   end
   TM --> CC
   CC -->|spawn child, stdio MCP| BUN
@@ -218,7 +218,7 @@ flowchart LR
     L2["L2 HOT<br/>hot/recent.md (24h) · hot/handoff.md<br/>(handoff placed by the boot hook)"]
     L3["L3 WARM<br/>warm/decisions.md (rotates >14d → COLD)<br/>COLD: MEMORY.md · LEARNINGS.md (on demand)"]
   end
-  L4["L4 SHARED BRAIN<br/>labops-second-brain · recall/memory/swarm over MCP"]
+  L4["L4 SHARED BRAIN<br/>labops-second-brain · memory_router/memory/agent_router over MCP"]
   L1 --> L2 --> L3 --> L4
   classDef brand fill:#8B5CF6,stroke:#6D28D9,color:#ffffff,font-weight:bold
   classDef ext fill:#CCFBF1,stroke:#0D9488,color:#0F766E
@@ -235,7 +235,7 @@ flowchart LR
 | **L2 Hot** | `hot/recent.md` (rolling 24 h), `hot/handoff.md` | yes (handoff placed by the boot hook) | agent autonomously (GREEN) |
 | **L3 Warm** | `warm/decisions.md` (last ~14 d, rotates into COLD) | yes | agent with justification (YELLOW) |
 | **COLD** | `MEMORY.md`, `LEARNINGS.md` | no — on demand (Read) | agent (GREEN) |
-| **L4 Shared** | second_brain `recall` / `memory` / `swarm` | no — on demand (MCP) | per RBAC scopes |
+| **L4 Shared** | second_brain `memory_router` / `memory` / `agent_router` | no — on demand (MCP) | per RBAC scopes |
 
 File access zones: **RED** (`CLAUDE.md`, `rules.md`, `USER.md`) — Operator only; **YELLOW** (`decisions.md`, `AGENTS.md`, `TOOLS.md`) — agent with justification; **GREEN** (`LEARNINGS.md`, `hot/recent.md`, `feedback_*`) — agent autonomously.
 
@@ -245,7 +245,7 @@ The **shared-brain write policy** is fixed in [`SECONDBRAIN_WRITE_RULES.md`](SEC
 
 ## agent-template — scaffolder
 
-[`agent-template/`](agent-template/) is a complete Claude Code workspace template, wired to the shared `labops-second-brain` (memory + recall + swarm). The interactive `install.sh` asks for the agent's identity and brain connection parameters, renders the templates, and assembles the workspace into `~/.claude-lab/<agent-id>/.claude/`.
+[`agent-template/`](agent-template/) is a complete Claude Code workspace template, wired to the shared `labops-second-brain` (memory + memory_router + agent_router). The interactive `install.sh` asks for the agent's identity and brain connection parameters, renders the templates, and assembles the workspace into `~/.claude-lab/<agent-id>/.claude/`.
 
 **Prompts during scaffolding** (they fill `CLAUDE.md` placeholders): name (`{{AGENT_NAME}}`), role (`{{AGENT_ROLE}}` / `{{AGENT_ROLE_DESCRIPTION}}`), character (`{{CHARACTER_TRAITS}}`), how to address the Operator, response language, model; plus brain parameters — `MCP_HOST`, `AGENT_BEARER`, `AGENT_SCOPES`.
 
@@ -254,7 +254,7 @@ The **shared-brain write policy** is fixed in [`SECONDBRAIN_WRITE_RULES.md`](SEC
 ```
 ~/.claude-lab/<agent-id>/.claude/
 ├── CLAUDE.md            # SOUL / identity (from templates/CLAUDE.md.template)
-├── .mcp.json            # ONLY the 3 second_brain servers (memory/recall/swarm), chmod 600
+├── .mcp.json            # ONLY the 3 second_brain servers (memory/memory_router/agent_router), chmod 600
 ├── settings.json        # SessionStart / Stop / PreCompact hooks
 ├── agent.env            # source before launch: MCP_HOST / AGENT_BEARER
 ├── core/
@@ -262,7 +262,7 @@ The **shared-brain write policy** is fixed in [`SECONDBRAIN_WRITE_RULES.md`](SEC
 │   ├── warm/decisions.md           # WARM (last 14d)
 │   └── hot/{recent.md, handoff.md, archive/, pre-compact/}
 ├── tools/TOOLS.md
-├── scripts/             # memory rotation + second_brain-recall-on-start
+├── scripts/             # memory rotation + second_brain-memory_router-on-start
 ├── hooks/               # session-start, stop, precompact
 ├── logs/
 └── skills/              # symlink to the shared skill bundle
@@ -272,7 +272,7 @@ The **shared-brain write policy** is fixed in [`SECONDBRAIN_WRITE_RULES.md`](SEC
 |---|---|
 | `templates/` | `CLAUDE.md`, `rules.md`, `USER.md`, `tools.md`, `agents.md`, `decisions.md`, `recent.md`, `MEMORY.md`, `LEARNINGS.md`, `mcp.json`, `settings.json` |
 | `hooks/` | `session-start-hook.sh`, `stop-hook.sh`, `precompact-hook.sh` |
-| `scripts/` | `memory-rotate.sh`, `trim-hot.sh`, `rotate-warm.sh`, `compress-warm.sh`, `second_brain-recall-on-start.sh` |
+| `scripts/` | `memory-rotate.sh`, `trim-hot.sh`, `rotate-warm.sh`, `compress-warm.sh`, `second_brain-memory_router-on-start.sh` |
 | `docs/` | `ARCHITECTURE.md`, `MEMORY.md`, `HOOKS.md`, `MULTI-AGENT.md`, `SETUP-GUIDE.md`, `AGENT-LAWS.md`, … (16 files) |
 
 Important: `mcp.json.template` connects the agent to **only** second_brain (3 servers). The channel (`labops-channel`) is loaded separately at launch via `claude … server:labops-channel`, and the task-board MCP (`:8769`) is deliberately **not** wired to agents (the heartbeat runs as a separate cron).
@@ -301,7 +301,7 @@ flowchart LR
     S5["5. Voice<br/>groq-voice skill (GROQ_API_KEY)"]
     S6["6. second_brain token<br/>Bearer + scopes from labops-second-brain"]
     S7["7. Autostart<br/>systemd unit + watchdog"]
-    S8["8. Smoke test<br/>channel, recall, swarm, reactions"]
+    S8["8. Smoke test<br/>channel, memory_router, agent_router, reactions"]
     S5 --> S6 --> S7 --> S8
   end
   S4 --> S5
@@ -324,7 +324,7 @@ flowchart LR
 | 5. Voice | wires up the `groq-voice` skill (`.ogg` transcription) | `GROQ_API_KEY` in secrets |
 | 6. Brain token | requests a Bearer + `scopes` from `labops-second-brain` | `.mcp.json` (chmod 600) |
 | 7. Autostart | installs `claude-agent-<agent>.service` + watchdog, adds to the roster | unit + a line in `agents.conf` |
-| 8. Smoke test | final check: channel is listening, recall/swarm respond, reactions are set | green run |
+| 8. Smoke test | final check: channel is listening, memory_router/agent_router respond, reactions are set | green run |
 
 The Telegram bot token is pulled **not from a hardcode** but from `channel.env` via `orchestration/lib/agents.sh::agent_bot_token` (it looks in `/etc/labops-plugin/<agent>/channel.env`, then `$CLAUDE_LAB/shared/state/<agent>/telegram/channel.env`).
 
@@ -338,7 +338,7 @@ A hook is **not a server**: the Claude Code engine emits an event at a defined m
 
 | Event | Hook (`agent-template/hooks/`) | What it does |
 |---|---|---|
-| **SessionStart** | `session-start-hook.sh` | logs the start; if `MCP_HOST`+`AGENT_BEARER` are present — calls `second_brain-recall-on-start.sh` (appends a block of relevant recall to `hot/recent.md`); surfaces `handoff.md`. In a swarm, also `agent-boot-sequence.sh`: 👀 on fresh messages + `swarm.list_my_pending()` (pull delegated tasks — a pull safeguard) |
+| **SessionStart** | `session-start-hook.sh` | logs the start; if `MCP_HOST`+`AGENT_BEARER` are present — calls `second_brain-memory_router-on-start.sh` (appends a block of relevant recall to `hot/recent.md`); surfaces `handoff.md`. In a swarm, also `agent-boot-sequence.sh`: 👀 on fresh messages + `agent_router.list_my_pending()` (pull delegated tasks — a pull safeguard) |
 | **Stop** | `stop-hook.sh` | appends a 200-char turn snippet to `hot/recent.md` and a detailed JSON line to `logs/verbose-YYYY-MM-DD.jsonl`. In a swarm, also `read-receipt-hook.ts` (POST `/hooks/react` → 👌) and `reflect-error-pattern.sh` (if the Operator corrected something → nudge to record an error-pattern via `decision:"block"`) |
 | **PreCompact** | `precompact-hook.sh` | snapshots `hot/recent.md` into `hot/pre-compact/` before auto-compaction, keeps the last `KEEP_SNAPSHOTS` (10) |
 
@@ -354,7 +354,7 @@ The scripts in [`orchestration/`](orchestration/) are trigger-driven "one-shots"
 | Script | Trigger | Purpose |
 |---|---|---|
 | `heartbeat-all.sh` | cron, once a minute | heartbeat only for live tmux sessions → the supervisor tells live agents from dead ones (dead agents' `last_seen` goes stale, their tasks get reclaimed) |
-| `night-learnings.sh` | cron, 02:00 UTC | nightly learnings cycle: `swarm.notify` each → review 7-day learnings → update `rules.md` |
+| `night-learnings.sh` | cron, 02:00 UTC | nightly learnings cycle: `agent_router.notify` each → review 7-day learnings → update `rules.md` |
 | `message-reaction-daemon.sh` | per-agent background daemon | sets 👀 on **every** inbound (text/voice/stickers) immediately, polling every ~3 s |
 | `start-reaction-daemons.sh` | `@reboot` | brings up reaction daemons for all roster agents, with PID files |
 | `set-message-reaction.sh` / `handle-incoming-messages.sh` | helpers | reaction and inbound-handling primitives |
@@ -376,7 +376,7 @@ The bundle in [`skills/`](skills/) is installed by symlink into `~/.claude/skill
 | Skill | What it does | Needs |
 |---|---|---|
 | `groq-voice` | transcribes voice `.ogg` via Groq Whisper (required on `<media:audio>`) | `GROQ_API_KEY` |
-| `second_brain-doctor` | agent-side diagnostics of second_brain: connect, identity, recall, swarm, hooks-parity, webhooks, repo, MCP-URL safety; output is redacted (secrets masked) | — |
+| `second_brain-doctor` | agent-side diagnostics of second_brain: connect, identity, memory_router, agent_router, hooks-parity, webhooks, repo, MCP-URL safety; output is redacted (secrets masked) | — |
 | `mcp-builder` | a guide (from Anthropic) to building new MCP servers (FastMCP / TS SDK) | — |
 | `markdown-new` | clean Markdown from any URL via `markdown.new` (a replacement for the noisy web_fetch, ~80% token savings) | — |
 | `transcript` | YouTube transcripts via TranscriptAPI.com | `TRANSCRIPT_API_KEY` |
@@ -395,7 +395,7 @@ The root `install.sh` installs **this repo only** — foundation deps, Claude Co
 - **A dedicated OS user** — if `install.sh` is run as root, after installing system packages (which need root/sudo) it offers to create a non-root user (you choose the username — no hardcoded default) and re-runs the rest of the install as that user; agents run with `claude --dangerously-skip-permissions` (no per-action confirmation), which is unsafe to leave under root. Password is set interactively via `passwd` (for your own `su`/SSH access — the agent itself never needs it). Skip with `SKIP_USER_SETUP=1`.
 - **Claude Code** — installed by `install.sh` itself via the native installer (no Node.js/npm); then a **one-time subscription sign-in**: `install.sh` runs `claude setup-token` (Max/Pro, first-party — no third-party risk) for you automatically, right before creating the first agent, if you haven't signed in yet. The agent's model is set in `settings.json` (the `model` field); the `create-agent` dialog asks for it and recommends **`opus` (Opus 4.8)** for the Developer. Without sign-in the agent starts under systemd but can't reach the model — the smoke test catches this (the "model responds" step).
 - **`labops-tg-plugin`** — cloned to `~/labops-tg-plugin` by `install.sh`; install it yourself with its own `cd ~/labops-tg-plugin && ./install.sh` (right after setting up the bot with @BotFather) — the channel through which the agent talks on Telegram. If you create the Developer agent before this step, it starts in degraded mode until you install this repo.
-- **`labops-second-brain`** — cloned to `~/labops-second-brain` by `install.sh`; install it yourself either by running `sudo bash ~/labops-second-brain/scripts/install.sh` directly, or by handing it to a Claude Code agent (`cd ~/labops-second-brain && claude`, then paste the prompt from Quickstart step 3 — it follows `AGENT.md` and asks for confirmation on destructive steps) — issues the agent a Bearer token and brings up the MCP `memory`/`recall`/`swarm`.
+- **`labops-second-brain`** — cloned to `~/labops-second-brain` by `install.sh`; install it yourself either by running `sudo bash ~/labops-second-brain/scripts/install.sh` directly, or by handing it to a Claude Code agent (`cd ~/labops-second-brain && claude`, then paste the prompt from Quickstart step 3 — it follows `AGENT.md` and asks for confirmation on destructive steps) — issues the agent a Bearer token and brings up the MCP `memory`/`memory_router`/`agent_router`.
 
 > [!IMPORTANT]
 > **Model & auth.** Sign in once with `claude setup-token` (Max/Pro subscription, first-party — no third-party risk). The agent's model is set in `settings.json` (the `model` field); `opus` (Opus 4.8) is recommended for the Developer. Without sign-in the agent starts but can't reach a model.
@@ -418,7 +418,7 @@ Scaffolding a single workspace without a full deployment — via `agent-template
 
 - **Bash syntax check** — `bash -n` over all scripts in `orchestration/*.sh`, `agent-template/hooks/*.sh`, `agent-template/scripts/*.sh` (hooks are fail-open, so static check + smoke is enough).
 - **Repository self-test** (`test.sh`) — bash syntax, python compile, absence of secrets, and a check that model/auth is accounted for (`settings.json` sets `model`, `create-agent` passes the model choice through, there's a `claude setup-token` step).
-- **Smoke test** at the end of `install.sh` / `create-agent`: **the model responds** (Claude Code is authorized, `claude -p ping`); the agent session reached `Listening for channel`; the channel responds; `recall`/`swarm` are reachable by Bearer; reactions 👀/👌 are set.
+- **Smoke test** at the end of `install.sh` / `create-agent`: **the model responds** (Claude Code is authorized, `claude -p ping`); the agent session reached `Listening for channel`; the channel responds; `memory_router`/`agent_router` are reachable by Bearer; reactions 👀/👌 are set.
 - **`second_brain-doctor`** (skill) — repeatable agent-side diagnostics of the second_brain link after install.
 
 ```bash
@@ -548,7 +548,7 @@ Secrets live in `channel.env` / `.claude/secrets` (`chmod 600`) and are never co
 |---|---|---|
 | **labops-agent-architecture** (this one) | runtime / lifecycle | workspaces, memory, watchdog/systemd, hooks, swarm automation, `create-agent` |
 | **[labops-tg-plugin](https://github.com/dediukhinpa/labops-tg-plugin)** | channel | per-agent Telegram bot, voice, reactions, webhook `:8089+`, channel MCP tools (`reply`/`react`/…) |
-| **[labops-second-brain](https://github.com/dediukhinpa/labops-second-brain)** | memory | Postgres+pgvector, MCP `memory:8767` / `recall:8768` / `swarm:8766` / `task:8769`, RBAC by Bearer |
+| **[labops-second-brain](https://github.com/dediukhinpa/labops-second-brain)** | memory | Postgres+pgvector, MCP `memory:8767` / `memory_router:8768` / `agent_router:8766` / `task:8769`, RBAC by Bearer |
 
 ---
 

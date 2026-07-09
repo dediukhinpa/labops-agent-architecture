@@ -30,8 +30,8 @@ LOG_FILE="$LOG_DIR/${AGENT_NAME}-$(date +%Y%m%d-%H%M%S).log"
     exit 1
   fi
 
-  # Извлеки bearer token для second_brain-swarm
-  BEARER_TOKEN=$(grep -A2 "second_brain-swarm" "$MCP_CONFIG" | grep "Authorization" | grep -oP '(?<=Bearer )[^"]+' | head -1)
+  # Извлеки bearer token для second_brain-agent_router
+  BEARER_TOKEN=$(grep -A2 "second_brain-agent_router" "$MCP_CONFIG" | grep "Authorization" | grep -oP '(?<=Bearer )[^"]+' | head -1)
   if [ -z "$BEARER_TOKEN" ]; then
     echo "[BOOT] ⚠️ No bearer token in MCP config"
     exit 1

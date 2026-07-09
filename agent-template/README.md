@@ -1,9 +1,9 @@
 # agent-template
 
 Complete Claude Code agent workspace template, wired to a shared **second_brain** MCP
-server (memory + recall + swarm). Ported from
+server (memory + memory_router + agent_router). Ported from
 `public-architecture-claude-code` and adapted: the upstream semantic-memory
-backend is replaced with second_brain MCP recall (HTTP + Bearer + JSON-RPC).
+backend is replaced with second_brain MCP memory_router (HTTP + Bearer + JSON-RPC).
 
 ## Two ways to use this
 
@@ -50,7 +50,7 @@ harness on failure.
 ```
 ~/.claude-lab/<agent-id>/.claude/
 |-- CLAUDE.md                  # SOUL / identity
-|-- .mcp.json                  # second_brain memory/recall/swarm endpoints (chmod 600)
+|-- .mcp.json                  # second_brain memory/memory_router/agent_router endpoints (chmod 600)
 |-- settings.json              # Claude Code hooks (SessionStart/Stop/PreCompact)
 |-- agent.env                  # source this to export MCP_HOST/AGENT_BEARER
 |-- core/
@@ -66,7 +66,7 @@ harness on failure.
 |       |-- archive/
 |       `-- pre-compact/
 |-- tools/TOOLS.md
-|-- scripts/                   # memory rotation + second_brain-recall-on-start
+|-- scripts/                   # memory rotation + second_brain-memory_router-on-start
 |-- hooks/                     # session-start, stop, precompact
 |-- logs/
 `-- skills/                    # symlink to ../skills/ shared bundle
@@ -96,7 +96,7 @@ agent-template/
 |   |-- trim-hot.sh                    compress HOT via Sonnet
 |   |-- rotate-warm.sh                 move WARM >14d to COLD
 |   |-- compress-warm.sh               Sonnet-compress WARM
-|   `-- second_brain-recall-on-start.sh      pull top-N recalls at SessionStart
+|   `-- second_brain-memory_router-on-start.sh      pull top-N recalls at SessionStart
 |-- hooks/
 |   |-- session-start-hook.sh
 |   |-- stop-hook.sh
@@ -127,7 +127,7 @@ agent-template/
 |---|---|
 | Upstream semantic-memory backend (HTTP REST `/api/v1/...`) | second_brain MCPs (HTTP MCP transport, JSON-RPC 2.0, Bearer auth) |
 | Bearer/API key under `~/.claude-lab/shared/secrets/` (file on disk) | Bearer in `.mcp.json` `Authorization: Bearer ${AGENT_BEARER}` (chmod 600) |
-| Upstream session-sync script (uploads HOT+WARM to the memory server) | `scripts/second_brain-recall-on-start.sh` (pulls top-N recalls into HOT) |
+| Upstream session-sync script (uploads HOT+WARM to the memory server) | `scripts/second_brain-memory_router-on-start.sh` (pulls top-N recalls into HOT) |
 | Standalone install | Lives inside the public-second_brain-agentos distro alongside the server, inbox-agent, and skills bundle |
 | Hooks described in docs only | Concrete `hooks/*.sh` shipped, wired via `templates/settings.json.template` |
 
