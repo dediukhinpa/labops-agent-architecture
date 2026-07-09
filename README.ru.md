@@ -124,9 +124,6 @@ cd labops-agent-architecture
 bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
 ```
 
-> [!NOTE]
-> Если какой-то из `labops-*` репо окажется приватным, `install.sh` сам переклонирует его с `GITHUB_TOKEN` (fine-grained PAT, `Contents: Read`, выданный от аккаунта владельца репозиториев) — `export GITHUB_TOKEN=ghp_xxx` перед запуском блока выше.
-
 Все три репо оказываются на диске после блока выше (`git clone` — этот репо, `bash install.sh` — оба соседа). Но *устанавливает* он только себя — `labops-tg-plugin` и `labops-second-brain` всё ещё нужно поставить их собственными `install.sh` из `~/labops-tg-plugin` и `~/labops-second-brain` (шаги 2-3 выше, там же ссылки на их Quickstart). Если чего-то нет — установка честно перечислит, что **не** настроено (а не покажет ложный зелёный).
 
 ---
@@ -398,8 +395,6 @@ flowchart LR
 - **Claude Code** — устанавливается самим `install.sh` через нативный установщик (без Node.js/npm); затем **разово авторизоваться по подписке**: `install.sh` сам запускает `claude setup-token` (Max/Pro, первая сторона — без third-party риска) прямо перед созданием первого агента, если вы ещё не входили. Модель агента задаётся в `settings.json` (поле `model`); диалог `create-agent` спрашивает её и для Developer рекомендует **`opus` (Opus 4.8)**. Без авторизации агент стартует под systemd, но не достучится до модели — это ловит smoke-тест (шаг «модель отвечает»).
 - **`labops-tg-plugin`** — клонируется в `~/labops-tg-plugin` скриптом `install.sh`; ставите сами своей командой `cd ~/labops-tg-plugin && ./install.sh` (сразу после настройки бота через @BotFather) — это канал, через который агент общается в Telegram. Если создать Developer-агента раньше этого шага, он стартует в деградированном режиме, пока этот репо не установлен.
 - **`labops-second-brain`** — клонируется в `~/labops-second-brain` скриптом `install.sh`; ставите сами — либо запустив напрямую `sudo bash ~/labops-second-brain/scripts/install.sh`, либо отдав Claude Code агенту (`cd ~/labops-second-brain && claude`, затем вставьте промпт из шага 3 «Быстрого старта» — он следует `AGENT.md` и спрашивает подтверждение на разрушительных шагах) — выдаёт агенту Bearer-токен и поднимает MCP `memory`/`recall`/`swarm`.
-- Если какой-то из репо `labops-*` окажется приватным, `install.sh` переклонирует его с `GITHUB_TOKEN` (fine-grained PAT, `Contents: Read`) на чистом VPS без `gh`/SSH.
-
 > [!IMPORTANT]
 > **Модель и авторизация.** Разово войдите через `claude setup-token` (подписка Max/Pro, первая сторона — без third-party риска). Модель агента задаётся в `settings.json` (поле `model`); для Developer рекомендуется `opus` (Opus 4.8). Без авторизации агент стартует, но не достучится до модели.
 
@@ -412,9 +407,6 @@ cd labops-agent-architecture
 # labops-tg-plugin -> ~/labops-tg-plugin, labops-second-brain -> ~/labops-second-brain.
 bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
 ```
-
-> [!NOTE]
-> Если какой-то из `labops-*` репо окажется приватным, `install.sh` сам переклонирует его с `GITHUB_TOKEN` (fine-grained PAT, `Contents: Read`, выданный от аккаунта владельца репозиториев) — `export GITHUB_TOKEN=ghp_xxx` перед запуском блока выше.
 
 Все три репо оказываются на диске после блока выше (`git clone` — этот репо, `bash install.sh` — оба соседа) — но *устанавливает* он только себя. Соседей ставим сами, каждого из его репозитория — ссылки на их установку в шагах 2-3 «Быстрого старта» выше.
 
