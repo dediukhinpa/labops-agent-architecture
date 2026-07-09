@@ -123,12 +123,15 @@ git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GIT
   clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
 
-# Одна команда: зависимости + клонирование соседей + self-test +
-# авторизация (claude setup-token, если нужна) + создание Developer-агента
+# Одна команда: зависимости + self-test + авторизация (если нужна) +
+# Developer-агент. Она ЖЕ клонирует (но не устанавливает) оба соседа —
+# labops-tg-plugin -> ~/labops-tg-plugin, labops-second-brain -> ~/labops-second-brain —
+# так что после неё на диске уже все три репо. Установка каждого соседа —
+# отдельная команда из его же репозитория, шаги 2-3 выше.
 bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
 ```
 
-Если чего-то нет — установка честно перечислит, что **не** настроено (а не покажет ложный зелёный). Дальше ставим `labops-tg-plugin` и `labops-second-brain` сами — ссылки на их Quickstart в шагах 2-3 выше.
+Все три репо оказываются на диске после блока выше (`git clone` — этот репо, `bash install.sh` — оба соседа). Но *устанавливает* он только себя — `labops-tg-plugin` и `labops-second-brain` всё ещё нужно поставить их собственными `install.sh` из `~/labops-tg-plugin` и `~/labops-second-brain` (шаги 2-3 выше, там же ссылки на их Quickstart). Если чего-то нет — установка честно перечислит, что **не** настроено (а не покажет ложный зелёный).
 
 ---
 
@@ -415,12 +418,13 @@ git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GIT
   clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
 
-# Одна команда: зависимости + клонирование соседей (без установки) +
-# self-test + авторизация (claude setup-token, если нужна) + Developer-агент
+# Одна команда: зависимости + self-test + авторизация (если нужна) +
+# Developer-агент. Она ЖЕ клонирует (но не устанавливает) обоих соседей —
+# labops-tg-plugin -> ~/labops-tg-plugin, labops-second-brain -> ~/labops-second-brain.
 bash install.sh   # модель → идентичность → скаффолд → бот → голос → токен → systemd → smoke
 ```
 
-Дальше соседей ставим сами, каждого из его репозитория — ссылки на их установку в шагах 2-3 «Быстрого старта» выше.
+Все три репо оказываются на диске после блока выше (`git clone` — этот репо, `bash install.sh` — оба соседа) — но *устанавливает* он только себя. Соседей ставим сами, каждого из его репозитория — ссылки на их установку в шагах 2-3 «Быстрого старта» выше.
 
 Скаффолд одного воркспейса без полного развёртывания — через `agent-template/install.sh` (см. [`agent-template/README.md`](agent-template/README.md)).
 

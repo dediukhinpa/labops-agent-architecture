@@ -122,11 +122,15 @@ git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GIT
   clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
 
-# One command: deps + clone siblings + self-test + sign-in (if needed) + Developer
+# One command: deps + self-test + sign-in (if needed) + Developer agent.
+# It ALSO clones (but does not install) the other two repos for you —
+# labops-tg-plugin -> ~/labops-tg-plugin, labops-second-brain -> ~/labops-second-brain —
+# so after this all three repos are on disk. Installing each sibling is a
+# separate command, run from its own repo — steps 2-3 above.
 bash install.sh
 ```
 
-If something is missing, the install honestly lists what is **not** configured (rather than showing a false green). Next, install `labops-tg-plugin` and `labops-second-brain` yourself — see steps 2-3 above for links to their own Quickstarts.
+All three repos are cloned to disk by the block above (`git clone` gets this repo, `bash install.sh` clones the other two). Only this repo is *installed* by it, though — `labops-tg-plugin` and `labops-second-brain` still need their own `install.sh` run from inside `~/labops-tg-plugin` and `~/labops-second-brain` (steps 2-3 above, with links to their Quickstarts). If something is missing, the install honestly lists what is **not** configured (rather than showing a false green).
 
 ---
 
@@ -413,12 +417,13 @@ git -c http.extraHeader="Authorization: basic $(printf 'x-access-token:%s' "$GIT
   clone https://github.com/dediukhinpa/labops-agent-architecture.git
 cd labops-agent-architecture
 
-# One command: deps + clone siblings (without installing) + self-test +
-# sign-in (claude setup-token, only if needed) + create the Developer agent
+# One command: deps + self-test + sign-in (if needed) + Developer agent.
+# It ALSO clones (but does not install) both siblings for you —
+# labops-tg-plugin -> ~/labops-tg-plugin, labops-second-brain -> ~/labops-second-brain.
 bash install.sh   # model → identity → scaffold → bot → voice → token → systemd → smoke
 ```
 
-Then install the siblings yourself, each from its own repo — see Quickstart steps 2-3 above for links to their own install docs.
+All three repos are on disk after the block above (`git clone` gets this repo, `bash install.sh` clones the other two) — but only this repo is *installed* by it. Install the siblings yourself, each from its own repo — see Quickstart steps 2-3 above for links to their own install docs.
 
 Scaffolding a single workspace without a full deployment — via `agent-template/install.sh` (see [`agent-template/README.md`](agent-template/README.md)).
 
