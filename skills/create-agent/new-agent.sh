@@ -104,7 +104,21 @@ if [ -z "${AGENT_BEARER:-}" ] && [ -n "$SECOND_BRAIN_DIR" ]; then
                   --agent "$AGENT_ID" --scopes "$AGENT_SCOPES" 2>/dev/null | tail -1)" \
     || warn "не удалось выдать токен автоматически"
 fi
-[ -n "${AGENT_BEARER:-}" ] || ask AGENT_BEARER "Bearer-токен агента (issue-agent-token.py на VPS мозга)" "CHANGE_ME"
+if [ -z "${AGENT_BEARER:-}" ]; then
+  if [ -n "$SECOND_BRAIN_DIR" ]; then
+    # second_brain установлен локально, но автовыдача не сработала — токен
+    # мог быть выдан вручную на другом хосте, есть смысл спросить.
+    ask AGENT_BEARER "Bearer-токен агента (issue-agent-token.py на VPS мозга)" "CHANGE_ME"
+  else
+    # second_brain не найден вообще — спрашивать нечего, у оператора точно
+    # нет токена. Молча ставим плейсхолдер и оставляем чёткий след в DEGRADED.
+    AGENT_BEARER="CHANGE_ME"
+    warn "second_brain не найден локально — токен не запрашиваю, ставлю плейсхолдер"
+  fi
+fi
+if [ "$AGENT_BEARER" = "CHANGE_ME" ]; then
+  DEGRADED+=("нет реального Bearer-токена (second_brain не найден/не выдал) — после установки second_brain выполните: python <second_brain>/scripts/issue-agent-token.py --agent $AGENT_ID --scopes '$AGENT_SCOPES', впишите токен в $LAB_DIR/$AGENT_ID/.claude/agent.env (AGENT_BEARER=...) и перезапустите сервис агента")
+fi
 
 # ── 3. Скаффолд воркспейса (agent-template, неинтерактивно) ──────
 say "3. Скаффолд воркспейса"
