@@ -56,7 +56,7 @@ _WEBHOOK_PORTS: tuple[int, ...] = (8091, 8089)
 
 # Raw second_brain backend MCP service ports. If reachable from the agent machine on
 # the resolved *public* IP, the backend is exposed (actionable security issue).
-_BACKEND_PORTS: tuple[int, ...] = (8766, 8767, 8768, 8769)
+_BACKEND_PORTS: tuple[int, ...] = (5000, 5001, 5002, 5003)
 
 # Cloudflare IPv4 ranges — snapshot 2026-05-28. The authoritative live list is
 # https://www.cloudflare.com/ips-v4 and this snapshot WILL drift over time; it

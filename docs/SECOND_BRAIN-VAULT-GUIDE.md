@@ -51,55 +51,7 @@ second_brain-memory.create_decision_note(
 
 ---
 
-### 2. Runbooks — Пошаговые инструкции
-
-**Когда записывать:** Когда есть процесс который часто повторяется
-
-**Кто записывает:** Любой агент
-
-**Примеры:**
-
-```python
-second_brain-memory.create_runbook_note(
-    title="Emergency rollback procedure",
-    body="""
-    Когда: production упал, нужно откатиться на последнюю stable версию
-    
-    Шаги:
-    1. Оцени урон:
-       - Что сломалось? (check Sentry, metrics)
-       - Сколько пользователей затронуто?
-       - Критичность?
-    
-    2. Выбери rollback точку:
-       git log --oneline | head -10
-       (обычно откатываемся на commit ДО текущего)
-    
-    3. Откатись:
-       git revert HEAD
-       git push origin main
-    
-    4. Деплой откатанной версии:
-       CI/CD automatically triggers on push to main
-       Monitor: check metrics, Sentry, user reports
-    
-    5. Post-mortem:
-       - Какой баг причина?
-       - Как его было не поймать в CI?
-       - Добавить тест чтобы не повторилось
-    """,
-    tags=["deploy", "emergency", "recovery", "developer"]
-)
-```
-
-**Другие примеры:**
-- "Wiki compile workflow: raw → sources → entities → concepts → synthesis" (researcher)
-- "Post launch checklist: preview → schedule → monitor → adjust" (assistant)
-- "Code review checklist: security → performance → style → tests" (developer)
-
----
-
-### 3. Error Patterns — Ошибки и фиксы
+### 2. Error Patterns — Ошибки и фиксы
 
 **Когда записывать:** Когда найдена ошибка И найден способ её фиксить
 
@@ -148,7 +100,7 @@ second_brain-memory.create_error_pattern_note(
 
 ---
 
-### 4. External — Полезные ссылки и кейсы
+### 3. External — Полезные ссылки и кейсы
 
 **Когда записывать:** Когда нашёл полезный ресурс, кейс, пример извне
 
@@ -240,7 +192,7 @@ second_brain-memory_router.recall(
 | Агент | Query | Используется для |
 |---|---|---|
 | developer | "architecture design patterns decisions" | Восстановить архитектурный контекст при старте |
-| developer | "deployment emergency rollback recovery" | Быстро найти runbook если prod упал |
+| developer | "deployment emergency rollback recovery" | Быстро найти error-pattern если prod упал |
 | researcher | "wiki structure classification raw compile" | Помнить как организована Second Brain |
 | assistant | "content strategy tone voice post launch" | Помнить TOV и content strategy перед постингом |
 
@@ -277,36 +229,6 @@ second_brain-memory.create_decision_note(
     - Commit: abc123d
     """,
     tags=["category", "your_agent_name"]
-)
-```
-
-#### Runbook Note Template
-
-```python
-second_brain-memory.create_runbook_note(
-    title="[PROCESS NAME]",
-    body="""
-    When to use: [Describe the situation]
-    
-    Prerequisites:
-    - Access to [system]
-    - Knowledge of [concept]
-    
-    Steps:
-    1. [Step 1 with details]
-    2. [Step 2 with details]
-    3. [Step 3 with details]
-    ...
-    
-    Troubleshooting:
-    - If [problem]: [solution]
-    - If [problem]: [solution]
-    
-    Rollback: [How to undo if goes wrong]
-    
-    Time estimate: [30 min / 2 hours / etc]
-    """,
-    tags=["process", "your_agent_name"]
 )
 ```
 
@@ -364,7 +286,6 @@ bash /home/agent/.claude-lab/second_brain-vault-audit.sh developer ./.claude
 # [VAULT] Found 12 existing vault entries
 # [VAULT] Missing items for developer:
 #   - [ ] decision: deployment-strategy
-#   - [ ] runbook: emergency-rollback
 #   - [ ] error_pattern: auth-race-condition
 ```
 
@@ -448,15 +369,13 @@ developer отправляет в Telegram:
 
 **Vault полностью заполнен когда:**
 1. ✅ Каждый агент добавил свои decisions (3+)
-2. ✅ Каждый агент добавил свои runbooks (2+)
-3. ✅ Каждый агент добавил error patterns (2+)
-4. ✅ Агенты могут recall контекст при старте
-5. ✅ Новый агент может быстро понять как работает система
+2. ✅ Каждый агент добавил error patterns (2+)
+3. ✅ Агенты могут recall контекст при старте
+4. ✅ Новый агент может быстро понять как работает система
 
 **После этого:**
 - При compact контекста → agentы восстанавливают из vault
 - При new task → agent может recall relevant decisions
-- При emergency → agent может найти runbook быстро
 - При bug → agent может найти similar error pattern
 
 ---

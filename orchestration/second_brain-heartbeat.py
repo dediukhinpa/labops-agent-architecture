@@ -4,8 +4,8 @@
 Usage: second_brain-heartbeat.py <agent> [<agent> ...]
 
 For each agent it reads that agent's bearer token and calls the task-mcp
-`agent_heartbeat` tool (port 8769) via a proper MCP client. The old boot-script
-approach (raw curl to :8766) never worked — FastMCP streamable-http rejects it
+`agent_heartbeat` tool (port 5003) via a proper MCP client. The old boot-script
+approach (raw curl to :5000) never worked — FastMCP streamable-http rejects it
 ("must accept both application/json and text/event-stream"), which is why the
 agents table stayed empty. Fail-safe: any error for one agent is logged and
 skipped; the process never raises, so the cron driver stays quiet on success.
@@ -16,7 +16,7 @@ import sys
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 
-TASK_MCP_URL = "http://localhost:8769/mcp"
+TASK_MCP_URL = "http://localhost:5003/mcp"
 TOKEN_PATH = "/home/agent/.claude-lab/{agent}/.claude/secrets/second_brain-bearer"
 TIMEOUT_S = 10.0
 

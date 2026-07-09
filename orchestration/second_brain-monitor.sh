@@ -20,7 +20,7 @@
 #   MONITOR_COMPONENTS     space-separated "key|unit|port" specs (port empty for
 #                          workers). Default = the 5 units install enables. Add
 #                          task-mcp with e.g.:
-#                            MONITOR_COMPONENTS="...defaults... task|second_brain-task-mcp|8769"
+#                            MONITOR_COMPONENTS="...defaults... task|second_brain-task-mcp|5003"
 #   MONITOR_STATE_DIR      where per-component state is kept (default
 #                          $CLAUDE_LAB/logs/monitor-state).
 #   WATCHDOG_TG_ALERTS / WATCHDOG_ALERT_COOLDOWN / WATCHDOG_ALERT_CHAT_ID — see lib/notify.sh.
@@ -46,7 +46,7 @@ STATE_DIR="${MONITOR_STATE_DIR:-${CLAUDE_LAB:-$HOME/.claude-lab}/logs/monitor-st
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
 # Default monitored set = the units install.sh enables (task-mcp is opt-in).
-DEFAULT_COMPONENTS="memory|second_brain-memory-mcp|8767 memory_router|second_brain-memory_router-mcp|8768 agent_router|second_brain-agent_router-mcp|8766 ingest|second_brain-ingest-worker| agent_routerw|second_brain-agent_router-worker|"
+DEFAULT_COMPONENTS="memory|second_brain-memory-mcp|5001 memory_router|second_brain-memory_router-mcp|5002 agent_router|second_brain-agent_router-mcp|5000 ingest|second_brain-ingest-worker| agent_routerw|second_brain-agent_router-worker|"
 read -ra COMPONENTS <<< "${MONITOR_COMPONENTS:-$DEFAULT_COMPONENTS}"
 
 log() { echo "[sb-monitor] $(date -u '+%H:%M:%S') $*"; }

@@ -9,7 +9,7 @@ set -euo pipefail
 
 AGENT_NAME="${1:-unknown}"
 CLAUDE_DIR="${2:-.claude}"
-SECOND_BRAIN_MEMORY_URL="http://localhost:8767/mcp"
+SECOND_BRAIN_MEMORY_URL="http://localhost:5001/mcp"
 LOG_DIR="/home/agent/.claude-lab/logs/vault-audit"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -42,7 +42,7 @@ LOG_FILE="$LOG_DIR/${AGENT_NAME}-$(date +%Y%m%d-%H%M%S).log"
   "method": "memory.search",
   "params": {
     "arguments": {
-      "query": "agent_name decision runbook error_pattern external",
+      "query": "agent_name decision error_pattern external",
       "limit": 50
     }
   }
@@ -93,7 +93,7 @@ EOF
   echo ""
   echo "[VAULT] Step 3: Agent action items..."
   echo "[VAULT] ⚠️ Agent must manually add missing items during session"
-  echo "[VAULT] Use: second_brain-memory.create_decision_note / _runbook_note / _error_pattern_note"
+  echo "[VAULT] Use: second_brain-memory.create_decision_note / _error_pattern_note"
   echo ""
   echo "[VAULT] After adding → send confirmation:"
   echo "[VAULT]   second_brain-agent_router.notify(to_agent='<coordinator>', payload={'task': 'vault_audit_complete', 'agent': '$AGENT_NAME'})"

@@ -7,7 +7,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib/agents.sh"
 
 mapfile -t AGENTS < <(list_agents)
-SECOND_BRAIN_SWARM_URL="http://localhost:8766/mcp"
+SECOND_BRAIN_AGENT_ROUTER_URL="http://localhost:5000/mcp"
 
 echo "=== Sending second_brain Vault Audit Broadcast ==="
 echo ""
@@ -43,13 +43,6 @@ second_brain Vault Audit — проверка и заполнение общей
      tags=["git", "workflow", "deployment"]
    )
 
-   Runbook (пошаговая инструкция):
-   second_brain-memory.create_runbook_note(
-     title="Emergency rollback procedure",
-     body="1. Проверь что упало: logs\n2. Откатись: git revert\n3. Деплой...",
-     tags=["deploy", "emergency"]
-   )
-
    Error Pattern (ошибка и как её фиксить):
    second_brain-memory.create_error_pattern_note(
      title="Auth middleware race condition",
@@ -79,7 +72,7 @@ second_brain Vault Audit — проверка и заполнение общей
 4. Отправь отчёт оператору в Telegram:
    "✓ second_brain Vault audit completed
    - Items added: 5
-   - Categories: decisions(2), runbooks(2), error_patterns(1)
+   - Categories: decisions(2), error_patterns(1)
    - Total vault entries now: N"
 
 Дедлайн: сегодня, 18:00
@@ -111,7 +104,7 @@ EOF
 )
 
   # Отправь
-  curl -s -X POST "$SECOND_BRAIN_SWARM_URL" \
+  curl -s -X POST "$SECOND_BRAIN_AGENT_ROUTER_URL" \
     -H "Authorization: Bearer $BEARER_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$PAYLOAD" > /dev/null 2>&1

@@ -227,7 +227,7 @@ class TestResultModel:
             CheckResult(
                 "G8.backend_ports_closed",
                 "fail",
-                "8767 reachable",
+                "5001 reachable",
                 remediation="Close UFW.",
                 auto_fix=lambda: True,
             ),

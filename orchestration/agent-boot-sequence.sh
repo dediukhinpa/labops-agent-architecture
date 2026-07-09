@@ -11,7 +11,7 @@ source "$(dirname "$0")/lib/agents.sh"
 
 AGENT_NAME="${1:-unknown}"
 CLAUDE_DIR="${2:-.claude}"
-SECOND_BRAIN_SWARM_URL="http://localhost:8766/mcp"
+SECOND_BRAIN_AGENT_ROUTER_URL="http://localhost:5000/mcp"
 LOG_DIR="/home/agent/.claude-lab/logs/boot-sequence"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -87,7 +87,7 @@ EOF
   # Подставь имя агента
   PAYLOAD_1=$(echo "$PAYLOAD_1" | sed "s/\"agent\": \"\"/\"agent\": \"$AGENT_NAME\"/")
 
-  RESPONSE_1=$(curl -s --max-time 3 -X POST "$SECOND_BRAIN_SWARM_URL" \
+  RESPONSE_1=$(curl -s --max-time 3 -X POST "$SECOND_BRAIN_AGENT_ROUTER_URL" \
     -H "Authorization: Bearer $BEARER_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$PAYLOAD_1" 2>&1 || echo '{"error":"curl_failed"}')
@@ -125,7 +125,7 @@ EOF
 )
   PAYLOAD_2=$(echo "$PAYLOAD_2" | sed "s/\"assignee\": \"\"/\"assignee\": \"$AGENT_NAME\"/")
 
-  RESPONSE_2=$(curl -s --max-time 3 -X POST "$SECOND_BRAIN_SWARM_URL" \
+  RESPONSE_2=$(curl -s --max-time 3 -X POST "$SECOND_BRAIN_AGENT_ROUTER_URL" \
     -H "Authorization: Bearer $BEARER_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$PAYLOAD_2" 2>&1 || echo '{"error":"curl_failed"}')
@@ -156,7 +156,7 @@ EOF
 )
   PAYLOAD_3=$(echo "$PAYLOAD_3" | sed "s/\"agent\": \"\"/\"agent\": \"$AGENT_NAME\"/")
 
-  RESPONSE_3=$(curl -s --max-time 3 -X POST "$SECOND_BRAIN_SWARM_URL" \
+  RESPONSE_3=$(curl -s --max-time 3 -X POST "$SECOND_BRAIN_AGENT_ROUTER_URL" \
     -H "Authorization: Bearer $BEARER_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$PAYLOAD_3" 2>&1 || echo '{"error":"curl_failed"}')

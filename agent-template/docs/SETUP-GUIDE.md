@@ -14,7 +14,7 @@ your agent) before running `install.sh` here.
 `agent-template/install.sh` creates `~/.claude-lab/<agent-id>/.claude/`. Inside,
 a four-layer memory pyramid (IDENTITY -> WARM -> HOT -> COLD) lives as Markdown
 files. A `.mcp.json` points Claude Code at three remote MCP servers --
-**memory** (write decisions / runbooks / external notes), **memory_router** (read
+**memory** (write decisions / knowledge / external notes), **memory_router** (read
 shared semantic memory), **agent_router** (notify other agents) -- all behind a single
 `${MCP_HOST}` Bearer-authenticated endpoint. Three local hooks
 (`session-start`, `stop`, `precompact`) keep the local memory fresh; an
@@ -26,7 +26,7 @@ shared brain on each session start.
 - macOS or Linux with bash, `jq`, `python3`, `curl`, `git`
 - Claude Code CLI: `curl -fsSL https://claude.ai/install.sh | bash` (native installer, no Node.js needed)
 - second_brain server already deployed and reachable. You need:
-  - `MCP_HOST` URL (e.g. `https://mcp.example.com` or `http://<vps-ip>:8767`)
+  - `MCP_HOST` URL (e.g. `https://mcp.example.com` or `http://<vps-ip>:5001`)
   - Agent bearer token issued by
     [`../scripts/issue-agent-token.py`](../scripts/issue-agent-token.py) on the
     second_brain VPS
@@ -45,14 +45,14 @@ The script asks for:
 2. Operator profile (name, address, timezone, budget cap)
 3. **second_brain connection** (MCP host URL, Bearer token, comma-separated scopes)
 
-Default scopes: `decisions,external,runbooks,inbox`. Issue the token
+Default scopes: `decisions,external,knowledge,inbox`. Issue the token
 on the server with matching scopes:
 
 ```bash
 # on the second_brain VPS
 python3 /opt/second_brain/scripts/issue-agent-token.py \
     --agent <agent-id> \
-    --scopes decisions,external,runbooks,inbox
+    --scopes decisions,external,knowledge,inbox
 ```
 
 Copy the printed token into the installer prompt.
@@ -139,7 +139,7 @@ extraction so memory still gets pruned.
 Re-run `install.sh` with a different agent name. Each agent gets its own
 `~/.claude-lab/<agent-id>/.claude/` workspace and its own Bearer token, but they
 **share** the second_brain server -- so writes by one agent (`create_decision_note`,
-`create_runbook_note`, ...) become recall hits for the others. See
+`create_error_pattern_note`, ...) become recall hits for the others. See
 [MULTI-AGENT.md](MULTI-AGENT.md).
 
 ## Overlaying onto an existing Claude Code project

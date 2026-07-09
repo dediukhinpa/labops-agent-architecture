@@ -84,7 +84,7 @@ Example table:
 [PASS] G1.mcp_tools_list              memory_router=82ms agent_router=77ms memory=91ms tasks=skip
 [WARN] G6.stop_hook_recent_fresh      last stop-hook marker is 31h old
         -> Start a session/turn or repair Stop hook.
-[FAIL] G8.backend_ports_closed        8767 reachable on public backend IP
+[FAIL] G8.backend_ports_closed        5001 reachable on public backend IP
         -> Close UFW/security group; bind MCP to localhost or tailnet.
 
 Verdict: FAIL (34 pass, 6 warn, 1 fail, 5 skip) -- output redacted and safe to paste
@@ -130,7 +130,7 @@ The doctor is topology-aware and does not mandate any single topology.
 Secure topologies:
 
 - Caddy+TLS public domain on 443 with valid TLS, no-Bearer returns 401/403, and raw MCP backend
-  ports (8766-8769) closed on the resolved public IP.
+  ports (5000-5003) closed on the resolved public IP.
 - Tailscale: URL host is an IP in `100.64.0.0/10`; plain HTTP is acceptable only on tailnet
   addresses, Bearer still enforced.
 - Local-only: `127.0.0.1` / `localhost` / `::1`; fine for same-host testing if Bearer is enforced.
@@ -181,7 +181,7 @@ applying this to a live agent requires the boss's/operator's approval. Target te
 **Shared second_brain memory:**
 - second_brain is the shared long-term memory for labops agents.
 - Use it when continuity matters across sessions, agents, or machines.
-- Before non-trivial work, consider recall for prior decisions, runbooks, failures, and handoffs.
+- Before non-trivial work, consider recall for prior decisions, knowledge notes, failures, and handoffs.
 - When you discover durable facts, decisions, fixes, or reusable procedures, consider saving a concise note.
 - Prefer high-signal summaries over transcript dumps.
 - Include source and confidence when saving knowledge.

@@ -29,7 +29,7 @@
 Это один из **трёх** репозиториев системы labops. Он отвечает за то, как агент **живёт** (процессы, память, самовосстановление). Канал и общий мозг — в соседних репозиториях:
 
 - **[`labops-tg-plugin`](https://github.com/dediukhinpa/labops-tg-plugin)** — Telegram-канал: пер-агентный бот, голос, реакции, webhook.
-- **[`labops-second-brain`](https://github.com/dediukhinpa/labops-second-brain)** — общая память: MCP `memory:8767` / `memory_router:8768` / `agent_router:8766` / `task:8769`. Агент получает Bearer-токен и читает/пишет через MCP.
+- **[`labops-second-brain`](https://github.com/dediukhinpa/labops-second-brain)** — общая память: MCP `memory:5001` / `memory_router:5002` / `agent_router:5000` / `task:5003`. Агент получает Bearer-токен и читает/пишет через MCP.
 
 > [!IMPORTANT]
 > **Платформа:** Linux + systemd + tmux. На macOS/без systemd агент можно гонять вручную в tmux, но не как службу (нет автозапуска/самовосстановления).
@@ -149,7 +149,7 @@ flowchart LR
     direction TB
     CC["claude (Claude Code CLI)<br/>--dangerously-skip-permissions<br/>server:labops-channel"]
     BUN["канал-сервер (bun, labops-tg-plugin)<br/>Telegram long-poll + webhook :8089+"]
-    SB["second_brain MCP<br/>memory:8767 / memory_router:8768 / agent_router:8766"]
+    SB["second_brain MCP<br/>memory:5001 / memory_router:5002 / agent_router:5000"]
   end
   TM --> CC
   CC -->|spawn child, stdio MCP| BUN
@@ -239,7 +239,7 @@ flowchart LR
 
 Зоны доступа к файлам: **RED** (`CLAUDE.md`, `rules.md`, `USER.md`) — только оператор; **YELLOW** (`decisions.md`, `AGENTS.md`, `TOOLS.md`) — агент с обоснованием; **GREEN** (`LEARNINGS.md`, `hot/recent.md`, `feedback_*`) — агент автономно.
 
-**Политика записи в общий мозг** зафиксирована в [`SECONDBRAIN_WRITE_RULES.md`](SECONDBRAIN_WRITE_RULES.md) — это единый canonical-файл (RED-зона), который симлинкуется в `core/` каждого агента и **@-импортится в его `CLAUDE.md`** (`@core/SECONDBRAIN_WRITE_RULES.md`). Правишь один файл → подхватывают все агенты. Четыре дисциплины: (1) `recall` **перед** записью — не плодить дубли; (2) **dual-write** важного — и в локальный `.md`, и в second_brain (идемпотентно по sha256); (3) писать **сразу**, не «потом» (компакция знания не выгружает); (4) писать в свой `scope`. Инструменты записи жёстко зафиксированы кодом: `create_decision_note`, `create_runbook_note`, `create_error_pattern_note`, `create_external_note`, `create_personal_note` (→ `personal`), `create_project_note` (→ `projects`), `create_handoff`, `append_daily_log`, `supersede_decision`.
+**Политика записи в общий мозг** зафиксирована в [`SECONDBRAIN_WRITE_RULES.md`](SECONDBRAIN_WRITE_RULES.md) — это единый canonical-файл (RED-зона), который симлинкуется в `core/` каждого агента и **@-импортится в его `CLAUDE.md`** (`@core/SECONDBRAIN_WRITE_RULES.md`). Правишь один файл → подхватывают все агенты. Четыре дисциплины: (1) `recall` **перед** записью — не плодить дубли; (2) **dual-write** важного — и в локальный `.md`, и в second_brain (идемпотентно по sha256); (3) писать **сразу**, не «потом» (компакция знания не выгружает); (4) писать в свой `scope`. Инструменты записи жёстко зафиксированы кодом: `create_decision_note`, `create_error_pattern_note`, `create_external_note`, `create_personal_note` (→ `personal`), `create_project_note` (→ `projects`), `create_handoff`, `append_daily_log`, `supersede_decision`.
 
 ---
 
@@ -275,7 +275,7 @@ flowchart LR
 | `scripts/` | `memory-rotate.sh`, `trim-hot.sh`, `rotate-warm.sh`, `compress-warm.sh`, `second_brain-memory_router-on-start.sh` |
 | `docs/` | `ARCHITECTURE.md`, `MEMORY.md`, `HOOKS.md`, `MULTI-AGENT.md`, `SETUP-GUIDE.md`, `AGENT-LAWS.md`, … (16 файлов) |
 
-Важно: `mcp.json.template` подключает агенту **только** second_brain (3 сервера). Канал (`labops-channel`) грузится отдельно при запуске через `claude … server:labops-channel`, а task-board MCP (`:8769`) агентам намеренно **не** заводится (heartbeat идёт отдельным кроном).
+Важно: `mcp.json.template` подключает агенту **только** second_brain (3 сервера). Канал (`labops-channel`) грузится отдельно при запуске через `claude … server:labops-channel`, а task-board MCP (`:5003`) агентам намеренно **не** заводится (heartbeat идёт отдельным кроном).
 
 ---
 
@@ -456,7 +456,7 @@ bash install.sh --test-only
 | `WATCHDOG_ALERT_COOLDOWN` | env `watchdog.sh` | окно троттлинга по сообщению, секунды (по умолчанию `300`) — чтобы флаппинг не спамил |
 | `WATCHDOG_ALERT_CHAT_ID` | env `watchdog.sh` / `second_brain-monitor.sh` | отдельный чат для алертов; по умолчанию — чат оператора из `channel.env` |
 | `MONITOR_AGENT` | env `second_brain-monitor.sh` | агент, чей бот рассылает backend-алерты (по умолчанию — первый агент из ростера) |
-| `MONITOR_COMPONENTS` | env `second_brain-monitor.sh` | список `key\|unit\|port` через пробел (по умолчанию 5 юнитов, что включает install; добавь `task\|second_brain-task-mcp\|8769`, если включён) |
+| `MONITOR_COMPONENTS` | env `second_brain-monitor.sh` | список `key\|unit\|port` через пробел (по умолчанию 5 юнитов, что включает install; добавь `task\|second_brain-task-mcp\|5003`, если включён) |
 
 > [!WARNING]
 > Секреты лежат в `~/.claude-lab/<agent>/.claude/secrets/` с `chmod 600` и **никогда не хардкодятся** в скриптах; `start-agent.sh` падает быстро, если секрет отсутствует/нечитаем.
@@ -478,7 +478,7 @@ bash install.sh --test-only
 | Сервис не `active` | `systemctl status claude-agent-<agent>` + `journalctl -u claude-agent-<agent> -n50`. Частая причина — `claude` не авторизован (`claude setup-token`) или нет `channel.env`. |
 | `no TELEGRAM_BOT_TOKEN` в логе | `channel.env` не там, где ищет `start-agent.sh` — он берёт из `lib/agents.sh` (`/etc/labops-plugin/<agent>/` или `$CLAUDE_LAB/shared/state/<agent>/telegram/`). Пересоздайте через `new-agent.sh`. |
 | «Модель не ответила» | `claude setup-token` под пользователем агента, затем `systemctl restart claude-agent-<agent>`. |
-| `second_brain недоступен` | Проверьте `MCP_HOST` в `agent.env` (локально `127.0.0.1:8767`, удалённо — IP/домен VPS) и что мозг поднят. |
+| `second_brain недоступен` | Проверьте `MCP_HOST` в `agent.env` (локально `127.0.0.1:5001`, удалённо — IP/домен VPS) и что мозг поднят. |
 | Повторный запуск/коллизия имени | `new-agent.sh` не затирает существующего агента; для донастройки поверх — `REUSE_EXISTING=1`. |
 
 </details>
@@ -548,7 +548,7 @@ Self-hosted by design: агенты работают на собственном
 |---|---|---|
 | **labops-agent-architecture** (этот) | рантайм / lifecycle | воркспейсы, память, watchdog/systemd, хуки, автоматизация роя, `create-agent` |
 | **[labops-tg-plugin](https://github.com/dediukhinpa/labops-tg-plugin)** | канал | пер-агентный Telegram-бот, голос, реакции, webhook `:8089+`, MCP-инструменты канала (`reply`/`react`/…) |
-| **[labops-second-brain](https://github.com/dediukhinpa/labops-second-brain)** | память | Postgres+pgvector, MCP `memory:8767` / `memory_router:8768` / `agent_router:8766` / `task:8769`, RBAC по Bearer |
+| **[labops-second-brain](https://github.com/dediukhinpa/labops-second-brain)** | память | Postgres+pgvector, MCP `memory:5001` / `memory_router:5002` / `agent_router:5000` / `task:5003`, RBAC по Bearer |
 
 ---
 

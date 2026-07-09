@@ -45,7 +45,7 @@
 
 ### 🧠 second_brain MCP (Shared Memory)
 
-- ✅ `second_brain-memory` — сохранение decisions/runbooks/patterns
+- ✅ `second_brain-memory` — сохранение decisions/error-patterns
 - ✅ `second_brain-memory_router` — поиск в shared brain всех агентов
 - ✅ `second_brain-agent_router` — inter-agent communication
 - ✅ `second_brain-tasks` — task queue и heartbeats
@@ -87,7 +87,7 @@ researcher получит при SessionStart, даже если webhook был 
 #### developer (Кодер/Архитектор)
 - Model: Opus 4.8
 - Роль: Инфраструктура, архитектура, code review
-- second_brain: decision_notes, deployment_runbooks, error_patterns
+- second_brain: decision_notes, error_patterns
 - Может: Создавать/изменять код, деплоить, ревьюить
 
 #### researcher (Research/Knowledge Manager)
@@ -109,7 +109,7 @@ researcher получит при SessionStart, даже если webhook был 
 Все подключены через `.mcp.json`:
 
 ```
-second_brain-memory      → Сохранение фактов (decisions, runbooks, patterns)
+second_brain-memory      → Сохранение фактов (decisions, error-patterns)
 second_brain-memory_router → Поиск в shared brain
 second_brain-agent_router  → Отправка задач между агентами
 second_brain-tasks       → Task queue, heartbeats, status

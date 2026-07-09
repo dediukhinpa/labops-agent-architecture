@@ -13,9 +13,9 @@
 | 2 | **systemd: claude-agent-researcher** | Telegram webhook (labops-channel) | ✅ **На подписке** | `active` | Живая интерактивная сессия, входящие сообщения от юзера |
 | 3 | **systemd: claude-agent-assistant** | Telegram webhook (labops-channel) | ✅ **На подписке** | `active` | Живая интерактивная сессия, входящие сообщения от юзера |
 | 4 | **labops-channel plugin** | Telegram Bot API → hook в settings.json | ✅ **На подписке** | `running` | Перенаправляет сообщения в SessionStart/UserPromptSubmit hooks |
-| 5 | **MCP: second_brain-memory** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8767` | Локальные HTTP звонки, не API платёжи |
-| 6 | **MCP: second_brain-memory_router** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8768` | Локальные HTTP звонки, не API платёжи |
-| 7 | **MCP: second_brain-agent_router** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:8766` | Локальные HTTP звонки, не API платёжи |
+| 5 | **MCP: second_brain-memory** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:5001` | Локальные HTTP звонки, не API платёжи |
+| 6 | **MCP: second_brain-memory_router** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:5002` | Локальные HTTP звонки, не API платёжи |
+| 7 | **MCP: second_brain-agent_router** | HTTP запросы от агентов | ✅ **На подписке** | `localhost:5000` | Локальные HTTP звонки, не API платёжи |
 | 8 | **Cron jobs** | — | ✅ **Отсутствуют** | `—` | Нет периодических задач |
 | 9 | **GitHub Actions** | — | ✅ **Отсутствуют** | `—` | Нет workflow'ов (платно с 15.06.2026) |
 | 10 | **Agent SDK вызовы** | — | ✅ **Отсутствуют** | `—` | Нет SDK-программных вызовов, только CLI |
@@ -73,9 +73,9 @@
 ### 5-7. MCP Servers (second_brain-*)
 
 **Как работает:**
-- second_brain-memory: HTTP://localhost:8767/mcp (запись решений, ошибок, note'ов)
-- second_brain-memory_router: HTTP://localhost:8768/mcp (чтение shared memory)
-- second_brain-agent_router: HTTP://localhost:8766/mcp (inter-agent уведомления)
+- second_brain-memory: HTTP://localhost:5001/mcp (запись решений, ошибок, note'ов)
+- second_brain-memory_router: HTTP://localhost:5002/mcp (чтение shared memory)
+- second_brain-agent_router: HTTP://localhost:5000/mcp (inter-agent уведомления)
 
 **Биллинг:** ✅ На подписке
 - Это локальные HTTP запросы, не API вызовы
@@ -140,7 +140,7 @@ systemctl status claude-agent-{developer,researcher,assistant}
 journalctl -u claude-agent-assistant -f
 
 # Проверка MCP серверов
-curl -s http://localhost:8767/health 2>/dev/null || echo "MCP down"
+curl -s http://localhost:5001/health 2>/dev/null || echo "MCP down"
 
 # Проверка Telegram вебхуков
 ps aux | grep labops-channel

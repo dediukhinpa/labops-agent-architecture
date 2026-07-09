@@ -44,10 +44,10 @@ Do NOT assume. Do NOT redirect without operator.
 
 ## second_brain (L4 Shared Semantic Memory)
 
-- MCP host: `${MCP_HOST}` (e.g. `https://mcp.example.com` or `<vps-ip>:8767`)
+- MCP host: `${MCP_HOST}` (e.g. `https://mcp.example.com` or `<vps-ip>:5001`)
 - Bearer token: stored in `.mcp.json` (see `agent-template/templates/mcp.json.template`)
 - Recall: MCP tool `recall` on `${MCP_HOST}/memory_router/mcp` (JSON-RPC `tools/call`, args `{"query":"<topic>","limit":10}`)
-- Write: MCP tools `create_decision_note`, `create_runbook_note`, `create_error_pattern_note`, `create_external_note` on `${MCP_HOST}/memory/mcp`
+- Write: MCP tools `create_decision_note`, `create_error_pattern_note`, `create_external_note` on `${MCP_HOST}/memory/mcp`
 - Swarm: MCP tool `notify` on `${MCP_HOST}/agent_router/mcp` for inter-agent triggers
 
 ## Team

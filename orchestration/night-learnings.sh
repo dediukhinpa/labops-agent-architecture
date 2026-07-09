@@ -8,7 +8,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib/agents.sh"
 
 # Конфигурация
-SECOND_BRAIN_SWARM_URL="http://localhost:8766/mcp"
+SECOND_BRAIN_AGENT_ROUTER_URL="http://localhost:5000/mcp"
 mapfile -t AGENTS < <(list_agents)
 LOG_DIR="/home/agent/.claude-lab/logs/night-cycle"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
@@ -61,7 +61,7 @@ EOF
 
     # Отправляй agent_router.notify через MCP
     echo "  → Sending notification to $agent..."
-    RESPONSE=$(curl -s -X POST "$SECOND_BRAIN_SWARM_URL" \
+    RESPONSE=$(curl -s -X POST "$SECOND_BRAIN_AGENT_ROUTER_URL" \
       -H "Authorization: Bearer $BEARER_TOKEN" \
       -H "Content-Type: application/json" \
       -d "$PAYLOAD" 2>&1 || echo "ERROR")

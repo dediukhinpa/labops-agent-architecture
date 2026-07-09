@@ -11,14 +11,14 @@ configured correctly, rather than mandating one transport.
 |---|---|---|---|
 | Local-only | host is `127.0.0.1` / `localhost` / `::1` | Bearer still enforced; same-host testing only | yes (loopback) |
 | Tailscale | host/IP in `100.64.0.0/10` (CGNAT) | Bearer enforced; bound to the tailnet interface | yes (tailnet) |
-| Caddy + TLS public domain | hostname on 443 with valid TLS | valid cert, no-Bearer returns 401/403, raw MCP ports 8766-8769 closed on the origin IP | no — must be HTTPS |
+| Caddy + TLS public domain | hostname on 443 with valid TLS | valid cert, no-Bearer returns 401/403, raw MCP ports 5000-5003 closed on the origin IP | no — must be HTTPS |
 | Cloudflare-fronted / Tunnel | `server: cloudflare`, `cf-ray: <hex>-<IATA>`, or DNS in CF ranges | Bearer enforced **and** real streamable-http MCP calls succeed | no — must be HTTPS |
 | Raw public IP (insecure) | host is a raw, non-private public IP literal | never — this is a failure | n/a |
 
 Insecure verdicts the doctor flags as `fail`:
 
 - MCP URL is a raw public backend IP on 443 or on the MCP ports.
-- Raw backend MCP ports (8766-8769) reachable from the agent machine on the
+- Raw backend MCP ports (5000-5003) reachable from the agent machine on the
   resolved public/origin IP.
 - Any public endpoint returns HTTP 200 without a Bearer header.
 

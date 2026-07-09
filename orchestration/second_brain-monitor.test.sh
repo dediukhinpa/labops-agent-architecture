@@ -33,7 +33,7 @@ export MONITOR_SYSTEMCTL="$TMP/systemctl.sh"
 export MONITOR_CURL="$TMP/curl.sh"
 export MONITOR_STATE_DIR="$TMP/state"
 export MONITOR_AGENT="demo"
-export MONITOR_COMPONENTS="memory|second_brain-memory-mcp|8767"
+export MONITOR_COMPONENTS="memory|second_brain-memory-mcp|5001"
 export WATCHDOG_ALERT_COOLDOWN=0
 
 fail(){ echo "FAIL: $1"; exit 1; }

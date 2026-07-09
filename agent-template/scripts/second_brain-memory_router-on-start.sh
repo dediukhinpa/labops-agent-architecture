@@ -11,7 +11,7 @@ set -euo pipefail
 # Env:
 #   AGENT_WORKSPACE  -- absolute path to .claude workspace; default: derive from script path
 #   AGENT_ID         -- short id; default: derived from workspace parent dir
-#   MCP_HOST         -- e.g. https://mcp.example.com or http://127.0.0.1:8767
+#   MCP_HOST         -- e.g. https://mcp.example.com or http://127.0.0.1:5001
 #   AGENT_BEARER     -- bearer token for second_brain MCPs
 #   RECALL_LIMIT     -- top-N matches to retrieve (default 5)
 #

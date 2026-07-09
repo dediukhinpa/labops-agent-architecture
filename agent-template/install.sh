@@ -117,10 +117,10 @@ prompt BUDGET_LIMIT           "Red zone budget limit in USD [50]" "50"
 prompt GITHUB_USERNAME        "GitHub username (or skip)" "your-username"
 
 [ "${NONINTERACTIVE:-0}" = "1" ] || { echo ""; echo "--- second_brain MCP server ---"; }
-prompt MCP_HOST               "MCP host URL (e.g. https://mcp.example.com or http://<vps-ip>:8767)" "https://mcp.example.com"
+prompt MCP_HOST               "MCP host URL (e.g. https://mcp.example.com or http://<vps-ip>:5001)" "https://mcp.example.com"
 MCP_HOST="${MCP_HOST%/}"  # strip trailing slash
 prompt AGENT_BEARER          "Agent bearer token (issued by scripts/issue-agent-token.py)" "CHANGE_ME"
-prompt AGENT_SCOPES          "Agent scopes [decisions,external,runbooks,inbox]" "decisions,external,runbooks,inbox"
+prompt AGENT_SCOPES          "Agent scopes [decisions,external,knowledge,inbox]" "decisions,external,knowledge,inbox"
 
 # ============================================================
 # Step 3: Confirm
