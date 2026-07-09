@@ -65,8 +65,11 @@ if [ "$(id -u)" -eq 0 ] && [ "$MODE" != "test" ] && [ "${SKIP_USER_SETUP:-0}" !=
   echo "  непривилегированный пользователь — под ним будут жить агенты."
   read -rp "  Создать/использовать такого пользователя? [Y/n] " _ans
   if [ "${_ans:-Y}" != "n" ] && [ "${_ans:-Y}" != "N" ]; then
-    read -rp "  Имя пользователя [labops]: " AGENT_OS_USER
-    AGENT_OS_USER="${AGENT_OS_USER:-labops}"
+    AGENT_OS_USER=""
+    while [ -z "$AGENT_OS_USER" ]; do
+      read -rp "  Имя пользователя для агентов: " AGENT_OS_USER
+      [ -z "$AGENT_OS_USER" ] && warn "имя не может быть пустым"
+    done
     if id "$AGENT_OS_USER" >/dev/null 2>&1; then
       ok "пользователь $AGENT_OS_USER уже существует"
     else
