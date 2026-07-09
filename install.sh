@@ -13,6 +13,10 @@
 # Каждый из соседних репозиториев ставится СВОИМ install.sh отдельной командой
 # оператора — см. вывод скрипта после клонирования, либо README → Quickstart.
 #
+# Если запущен от root — сначала предлагает создать отдельного непривилеги-
+# рованного пользователя (агенты работают с --dangerously-skip-permissions,
+# под root это опасно) и продолжает установку уже от его имени.
+#
 # Использование:
 #   ./install.sh              # ОДНА команда: деплой + клонирование siblings + self-test +
 #                             # авторизация Claude Code (claude setup-token, если ещё не
@@ -28,10 +32,10 @@
 #   GITHUB_TOKEN=ghp_xxx      # нужен на чистом VPS для клонирования приватных labops-*
 #   SKIP_SECOND_BRAIN=1       # не клонировать labops-second-brain
 #   SKIP_TG_PLUGIN=1          # не клонировать labops-tg-plugin
+#   SKIP_USER_SETUP=1         # не предлагать создание отдельного пользователя для агентов
 
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LAB_DIR="${CLAUDE_LAB:-$HOME/.claude-lab}"
 
 C='\033[0;36m'; G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; N='\033[0m'
 say()  { printf "\n${C}▶ %s${N}\n" "$*"; }
@@ -46,6 +50,45 @@ MODE="full"
 echo "════════════════════════════════════════════"
 echo "  labops-agent-architecture · установка"
 echo "════════════════════════════════════════════"
+
+# ── 0. Отдельный пользователь для агентов ────────────────────────
+# Агенты работают с claude --dangerously-skip-permissions (без подтверждений
+# на каждое действие) — держать их под root опасно: любая ошибка агента
+# бьёт по всей машине. Если install.sh запущен от root (типичный чистый
+# VPS), предлагаем создать непривилегированного пользователя и продолжить
+# установку уже от его имени — агент и его systemd-сервис будут жить под
+# ним, без sudo (см. deny-правило Bash(sudo *) в settings.json.template).
+if [ "$(id -u)" -eq 0 ] && [ "$MODE" != "test" ] && [ "${SKIP_USER_SETUP:-0}" != "1" ] \
+   && command -v useradd >/dev/null 2>&1; then
+  say "0. Пользователь для агентов"
+  echo "  Сейчас install.sh запущен от root. Рекомендуется отдельный"
+  echo "  непривилегированный пользователь — под ним будут жить агенты."
+  read -rp "  Создать/использовать такого пользователя? [Y/n] " _ans
+  if [ "${_ans:-Y}" != "n" ] && [ "${_ans:-Y}" != "N" ]; then
+    read -rp "  Имя пользователя [labops]: " AGENT_OS_USER
+    AGENT_OS_USER="${AGENT_OS_USER:-labops}"
+    if id "$AGENT_OS_USER" >/dev/null 2>&1; then
+      ok "пользователь $AGENT_OS_USER уже существует"
+    else
+      useradd -m -s /bin/bash "$AGENT_OS_USER" || die "не удалось создать пользователя $AGENT_OS_USER"
+      ok "пользователь $AGENT_OS_USER создан"
+      echo "  Задайте ему пароль (нужен вам для su/ssh-входа — самому агенту он не нужен):"
+      passwd "$AGENT_OS_USER" || warn "пароль не задан — задайте позже: passwd $AGENT_OS_USER"
+    fi
+    NEW_HOME="$(getent passwd "$AGENT_OS_USER" | cut -d: -f6)"
+    DEST_REPO="$NEW_HOME/$(basename "$REPO_DIR")"
+    if [ "$REPO_DIR" != "$DEST_REPO" ]; then
+      [ -d "$DEST_REPO/.git" ] || cp -a "$REPO_DIR" "$DEST_REPO"
+      chown -R "$AGENT_OS_USER":"$AGENT_OS_USER" "$DEST_REPO"
+    fi
+    ok "продолжаю установку от имени $AGENT_OS_USER"
+    exec sudo -u "$AGENT_OS_USER" -H bash "$DEST_REPO/install.sh" "$@"
+  else
+    warn "продолжаю от root — НЕ рекомендуется для постоянной эксплуатации агентов"
+  fi
+fi
+
+LAB_DIR="${CLAUDE_LAB:-$HOME/.claude-lab}"
 
 # ── 1. Окружение и зависимости ───────────────────────────────────
 say "1. Окружение"
