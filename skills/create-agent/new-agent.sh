@@ -256,8 +256,12 @@ fi
 # ── 7. Smoke-тест ───────────────────────────────────────────────
 say "7. Smoke-тест"
 FAIL=0
-# 7a. второй мозг отвечает
-if curl -fsS -H "Authorization: Bearer $AGENT_BEARER" \
+# 7a. второй мозг отвечает — только если у нас есть настоящий токен. Без него
+# (AGENT_BEARER=CHANGE_ME, second_brain ещё не установлен — см. DEGRADED выше)
+# запрос гарантированно провалится и это ожидаемо, а не поломка.
+if [ "$AGENT_BEARER" = "CHANGE_ME" ]; then
+  warn "second_brain: пропускаю проверку — токена нет (second_brain ещё не установлен, см. выше)"
+elif curl -fsS -H "Authorization: Bearer $AGENT_BEARER" \
         -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" \
         -X POST "$SECOND_BRAIN_MEMORY_ROUTER_URL" \
         --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' >/dev/null 2>&1; then
