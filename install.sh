@@ -378,6 +378,6 @@ fi
 say "Готово."
 printf "  ${G}Developer создан.${N} Напишите ему в Telegram, либо запустите вручную:\n"
 printf "    ${B}source %s/agent.env && claude --project %s${N}\n" "$DEV_WS" "$DEV_WS"
-echo "  Чтобы добавить следующего агента — попросите Developer «заведи нового агента»"
+echo "  Чтобы добавить следующего агента — попросите Developer «Создай нового агента»"
 echo "  (он применит скилл create-agent) или запустите:"
 printf "    ${B}bash skills/create-agent/new-agent.sh${N}\n"
