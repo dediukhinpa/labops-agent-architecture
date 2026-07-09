@@ -158,6 +158,17 @@ ok "воркспейс: $WORKSPACE"
 # ── 4. Telegram-канал (бот) ─────────────────────────────────────
 say "4. Telegram-канал"
 if [ -n "$TG_PLUGIN_DIR" ]; then
+  STATE_DIR="$LAB_DIR/shared/state/$AGENT_ID/telegram"
+  CH_ENV="$STATE_DIR/channel.env"
+  if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] && grep -qs '^TELEGRAM_BOT_TOKEN=.\+' "$CH_ENV" 2>/dev/null; then
+    # У этого агента уже есть рабочий channel.env (напр. REUSE_EXISTING=1
+    # донастройка) — не переспрашиваем токен и не трогаем файл, чтобы не
+    # сдвинуть webhook-порт (см. ниже) и не заставлять вводить токен заново.
+    ok "Telegram: channel.env уже настроен ($CH_ENV) — переиспользую как есть"
+    if [ ! -e "$WORKSPACE/labops-tg-plugin" ]; then
+      ln -s "$TG_PLUGIN_DIR" "$WORKSPACE/labops-tg-plugin" && ok "плагин слинкован в воркспейс"
+    fi
+  else
   if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
     echo "  Нужен отдельный Telegram-бот для этого агента. Если ещё нет:"
     echo "   1) В Telegram откройте @BotFather → /newbot → задайте имя и @username"
@@ -170,17 +181,20 @@ if [ -n "$TG_PLUGIN_DIR" ]; then
     ask TELEGRAM_ALLOWED_USER_IDS "Ваш Telegram user_id (у @userinfobot)" ""
     [ -n "${TELEGRAM_ALLOWED_USER_IDS:-}" ] || DEGRADED+=("allowlist пуст: бот будет отвечать ВСЕМ — впишите user_id в channel.env")
     BOT_ID="${TELEGRAM_BOT_TOKEN%%:*}"
-    # Уникальный webhook-порт: первый свободный от 8089 (чтобы порты агентов не
-    # сталкивались и совпадали с тем, что слушает плагин и куда зовут хуки).
+    # Уникальный webhook-порт: если у ЭТОГО агента уже был channel.env (напр.
+    # обновление токена при REUSE_EXISTING=1) — берём его же порт, а не ищем
+    # новый (иначе порт агента "уезжает" при каждой донастройке). Иначе —
+    # первый свободный от 8089.
+    if [ -z "${TELEGRAM_WEBHOOK_PORT:-}" ]; then
+      TELEGRAM_WEBHOOK_PORT="$(grep -oP '^TELEGRAM_WEBHOOK_PORT=\K[0-9]+' "$CH_ENV" 2>/dev/null || true)"
+    fi
     if [ -z "${TELEGRAM_WEBHOOK_PORT:-}" ]; then
       TELEGRAM_WEBHOOK_PORT=8089
       while grep -rqsE "^TELEGRAM_WEBHOOK_PORT=${TELEGRAM_WEBHOOK_PORT}\$" "$LAB_DIR"/shared/state/*/telegram/channel.env 2>/dev/null; do
         TELEGRAM_WEBHOOK_PORT=$((TELEGRAM_WEBHOOK_PORT+1))
       done
     fi
-    STATE_DIR="$LAB_DIR/shared/state/$AGENT_ID/telegram"
     mkdir -p "$STATE_DIR"
-    CH_ENV="$STATE_DIR/channel.env"
     umask 077
     cat > "$CH_ENV" <<ENV
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
@@ -206,6 +220,7 @@ ENV
   else
     warn "токен бота не задан — Telegram пропущен (агент пока без чата)"
     DEGRADED+=("Telegram не настроен (нет токена) — агент текстовый только локально, в чат не пишет")
+  fi
   fi
 else
   warn "tg-plugin недоступен — пропускаю Telegram"
